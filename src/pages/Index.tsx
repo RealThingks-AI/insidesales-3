@@ -1,134 +1,141 @@
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Shield, User, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from '@/hooks/use-toast';
+import { User, Lock, Eye, EyeOff } from 'lucide-react';
 
 const Index = () => {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Settings Management Dashboard
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Comprehensive user management and profile settings with Supabase integration
-          </p>
-        </div>
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { user, signIn, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
 
-        <div className="max-w-4xl mx-auto">
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-6 w-6 text-blue-600" />
-                Admin Settings Portal
-              </CardTitle>
-              <CardDescription>
-                Manage users, roles, and profile settings with real-time Supabase synchronization
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Shield className="h-5 w-5 text-green-600" />
-                    <div>
-                      <h3 className="font-semibold">Security & Access</h3>
-                      <p className="text-sm text-gray-600">
-                        Manage user accounts, roles, and permissions
-                      </p>
-                    </div>
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/dashboard');
+    }
+
+  }, [user, authLoading, navigate]);
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const { error } = await signIn(email, password, false);
+    
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Error signing in",
+        description: error.message,
+      });
+    } else {
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully signed in.",
+      });
+      navigate('/dashboard');
+    }
+    
+    setLoading(false);
+  };
+
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
+          <p className="text-gray-600">Sign in to your account to continue</p>
+        </div>
+        
+        <Card className="shadow-xl border-0">
+          <CardHeader className="space-y-1 pb-6">
+            <CardTitle className="text-xl font-semibold text-center text-gray-800">
+              Sign In
+            </CardTitle>
+            <CardDescription className="text-center text-gray-600">
+              Enter your credentials to access your account
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSignIn} className="space-y-6">
+              <div className="space-y-4">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                    <User className="h-5 w-5 text-gray-400" />
                   </div>
-                  <div className="flex items-center gap-3">
-                    <User className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <h3 className="font-semibold">User Profile</h3>
-                      <p className="text-sm text-gray-600">
-                        Update personal information and profile settings
-                      </p>
-                    </div>
-                  </div>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Email address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
+                  />
                 </div>
                 
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-gray-900">Features:</h4>
-                  <ul className="space-y-2 text-sm text-gray-600">
-                    <li>• Add/remove users with email invitations</li>
-                    <li>• Role-based access control (Admin/User)</li>
-                    <li>• Real-time sync with Supabase Auth</li>
-                    <li>• Profile picture upload to Supabase Storage</li>
-                    <li>• Comprehensive user data management</li>
-                    <li>• Responsive design for all screen sizes</li>
-                  </ul>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                    <Lock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="pl-10 pr-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center z-10"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    )}
+                  </button>
                 </div>
               </div>
               
-              <div className="mt-8 flex justify-center">
-                <Link to="/settings">
-                  <Button size="lg" className="flex items-center gap-2">
-                    <Settings className="h-5 w-5" />
-                    Open Settings Dashboard
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">User Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 mb-4">
-                  Full CRUD operations for user accounts with immediate Supabase sync
-                </p>
-                <ul className="text-xs text-gray-500 space-y-1">
-                  <li>• Create users via email</li>
-                  <li>• Delete with cleanup</li>
-                  <li>• Role assignment</li>
-                  <li>• Last login tracking</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Profile Editor</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 mb-4">
-                  Comprehensive profile management with file uploads
-                </p>
-                <ul className="text-xs text-gray-500 space-y-1">
-                  <li>• Display name & username</li>
-                  <li>• Phone number</li>
-                  <li>• Avatar upload</li>
-                  <li>• Real-time validation</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Live Sync</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 mb-4">
-                  All changes reflect immediately in Supabase backend
-                </p>
-                <ul className="text-xs text-gray-500 space-y-1">
-                  <li>• Auth table updates</li>
-                  <li>• Users table sync</li>
-                  <li>• Roles & permissions</li>
-                  <li>• File storage</li>
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+              
+              <Button 
+                type="submit" 
+                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition-all duration-200 hover:shadow-md" 
+                disabled={loading}
+              >
+                {loading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Signing in...</span>
+                  </div>
+                ) : (
+                  'Sign In'
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
