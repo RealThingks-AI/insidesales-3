@@ -147,22 +147,25 @@ Deno.serve(async (req) => {
           )
         }
 
+        // Create user in auth.users table using admin client
         const createResult = await supabaseAdmin.auth.admin.createUser({
           email: params.email,
           password: params.password,
-          email_confirm: true, // Auto-confirm email
+          email_confirm: true, // Auto-confirm email so user can login immediately
           user_metadata: {
             display_name: params.displayName || params.email.split('@')[0]
           }
         })
 
+        console.log('Auth user creation result:', createResult)
+
         if (createResult.error) {
-          console.error('User creation failed:', createResult.error)
+          console.error('Auth user creation failed:', createResult.error)
           error = createResult.error
         } else {
-          console.log('User created successfully:', createResult.data.user?.id)
+          console.log('Auth user created successfully in auth.users table:', createResult.data.user?.id)
           
-          // Create profile using admin client
+          // Also create profile in profiles table using admin client to bypass RLS
           const { error: profileError } = await supabaseAdmin
             .from('profiles')
             .insert({
@@ -173,13 +176,17 @@ Deno.serve(async (req) => {
             })
 
           if (profileError) {
-            console.error('Profile creation failed:', profileError)
-            // Don't fail the whole operation for profile creation
+            console.error('Profile creation failed (but auth user was created):', profileError)
+            // Don't fail the whole operation since auth user was created successfully
+            console.log('Auth user exists in auth.users table even though profile creation failed')
           } else {
-            console.log('Profile created successfully')
+            console.log('Profile created successfully in profiles table')
           }
           
-          result = createResult.data
+          result = {
+            user: createResult.data.user,
+            message: 'User created successfully in auth.users table'
+          }
         }
         break
 
