@@ -1,6 +1,6 @@
 
 import React from 'react';
-import UserManagementSection from '@/components/settings/UserManagementSection';
+import FreshUserManagement from '@/components/settings/FreshUserManagement';
 
 const Settings = () => {
   return (
@@ -12,7 +12,7 @@ const Settings = () => {
         </div>
 
         <div className="space-y-6">
-          <UserManagementSection />
+          <FreshUserManagement />
         </div>
       </div>
     </div>
