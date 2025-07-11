@@ -51,23 +51,23 @@ const CompletelyNewUserManagement = () => {
     },
   });
 
-  // Helper function to call the manage-users edge function
-  const callManageUsersFunction = async (action: string, params: any = {}) => {
+  // Helper function to call the fresh-user-admin edge function
+  const callUserAdminFunction = async (action: string, params: any = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       throw new Error('Not authenticated');
     }
 
-    console.log('Calling manage-users function with action:', action, 'params:', params);
+    console.log('Calling fresh-user-admin function with action:', action, 'params:', params);
 
-    const { data, error } = await supabase.functions.invoke('manage-users', {
+    const { data, error } = await supabase.functions.invoke('fresh-user-admin', {
       body: { action, ...params },
       headers: {
         Authorization: `Bearer ${session.access_token}`,
       },
     });
 
-    console.log('Manage-users function response:', { data, error });
+    console.log('Fresh-user-admin function response:', { data, error });
 
     if (error) {
       console.error('Manage-users function error:', error);
@@ -84,8 +84,8 @@ const CompletelyNewUserManagement = () => {
 
   // Fetch profiles via edge function
   const { data: profiles = [], isLoading, refetch, error } = useQuery({
-    queryKey: ['manage-users-profiles'],
-    queryFn: () => callManageUsersFunction('listProfiles'),
+    queryKey: ['fresh-user-admin-profiles'],
+    queryFn: () => callUserAdminFunction('listProfiles'),
     retry: 2,
     retryDelay: 1000,
   });
@@ -95,7 +95,7 @@ const CompletelyNewUserManagement = () => {
   // Create user mutation
   const createUserMutation = useMutation({
     mutationFn: async (userData: z.infer<typeof createUserSchema>) => {
-      return callManageUsersFunction('createUser', userData);
+      return callUserAdminFunction('createUser', userData);
     },
     onSuccess: () => {
       toast({
@@ -118,7 +118,7 @@ const CompletelyNewUserManagement = () => {
   // Update role mutation
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: 'admin' | 'member' }) => {
-      return callManageUsersFunction('changeRole', { userId, role });
+      return callUserAdminFunction('changeRole', { userId, role });
     },
     onSuccess: () => {
       toast({
@@ -142,7 +142,7 @@ const CompletelyNewUserManagement = () => {
   // Delete user mutation
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return callManageUsersFunction('deleteUser', { userId });
+      return callUserAdminFunction('deleteUser', { userId });
     },
     onSuccess: () => {
       toast({
