@@ -68,13 +68,17 @@ const DealCard = ({ deal, onRefresh, onEdit }: DealCardProps) => {
             // Create display name using same logic as useUserProfile
             let displayName = profile.full_name;
             
-            if (!displayName && profile["Email ID"]) {
-              // Extract name from email (e.g., peter.jakobsson -> Peter Jakobsson)
-              const emailName = profile["Email ID"].split('@')[0];
-              displayName = emailName
-                .split('.')
-                .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-                .join(' ');
+            // Check if full_name is actually an email (contains @)
+            if (!displayName || displayName.includes('@')) {
+              const emailToUse = displayName || profile["Email ID"];
+              if (emailToUse) {
+                // Extract name from email (e.g., peter.jakobsson -> Peter Jakobsson)
+                const emailName = emailToUse.split('@')[0];
+                displayName = emailName
+                  .split('.')
+                  .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                  .join(' ');
+              }
             }
             
             setLinkedLeadOwner({ 
@@ -154,23 +158,23 @@ const DealCard = ({ deal, onRefresh, onEdit }: DealCardProps) => {
         <div className="space-y-2">
           <div className="text-xs text-gray-600">
             <span className="font-medium text-gray-700">Company:</span>
-            <span className="ml-1 truncate">
+            <div className="ml-1 truncate">
               {linkedLead?.company_name || 'No Company'}
-            </span>
+            </div>
           </div>
           
           <div className="text-xs text-gray-600">
             <span className="font-medium text-gray-700">Lead:</span>
-            <span className="ml-1 truncate">
+            <div className="ml-1 truncate">
               {linkedLead?.lead_name || 'No Lead Name'}
-            </span>
+            </div>
           </div>
           
           <div className="text-xs text-gray-600">
             <span className="font-medium text-gray-700">Owner:</span>
-            <span className="ml-1 truncate">
+            <div className="ml-1 truncate">
               {linkedLeadOwner?.display_name || 'No Owner'}
-            </span>
+            </div>
           </div>
         </div>
       </CardContent>
