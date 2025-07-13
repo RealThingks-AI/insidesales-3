@@ -90,11 +90,19 @@ const ConvertToLeadForm = ({ contact, onSuccess, onCancel }: ConvertToLeadFormPr
           .insert({
             lead_name: contact.contact_name,
             company_name: contact.company_name,
+            position: contact.position,
             email: contact.email,
             phone_no: contact.phone_no,
+            mobile_no: contact.mobile_no,
+            linkedin: contact.linkedin,
+            website: contact.website,
             contact_source: contact.contact_source || 'Website',
             lead_status: data.lead_status,
             industry: contact.industry || 'Other',
+            city: contact.city,
+            country: contact.country,
+            description: contact.description,
+            contact_owner: contact.contact_owner,
             created_by: user.id,
           } as any)
           .select()
