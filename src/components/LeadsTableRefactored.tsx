@@ -120,11 +120,6 @@ const LeadsTableRefactored = ({
 
   return (
     <div className="space-y-4">
-      {columnsCustomizer && (
-        <div className="flex justify-end p-4 border-b">
-          {columnsCustomizer}
-        </div>
-      )}
       <div className="overflow-auto">
         <GenericTable
           data={leads}

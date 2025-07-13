@@ -5,16 +5,18 @@ import { Card } from '@/components/ui/card';
 import KanbanColumn from './KanbanColumn';
 import DealCard from './DealCard';
 import StageRequirementsDialog from './StageRequirementsDialog';
-import { Deal, DEAL_STAGES, canMoveToStage, getStageCompletionStatus } from '@/hooks/useDeals';
+import { Deal, DEAL_STAGES, canMoveToStage, getStageCompletionStatus, getVisibleStages } from '@/hooks/useDeals';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 interface KanbanBoardProps {
   deals: Deal[];
   onRefresh: () => void;
+  onEditDeal?: (deal: Deal) => void;
+  onDeleteDeal?: (dealId: string) => void;
 }
 
-const KanbanBoard = ({ deals, onRefresh }: KanbanBoardProps) => {
+const KanbanBoard = ({ deals, onRefresh, onEditDeal, onDeleteDeal }: KanbanBoardProps) => {
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
   const [stageDialog, setStageDialog] = useState<{
     open: boolean;
@@ -88,7 +90,6 @@ const KanbanBoard = ({ deals, onRefresh }: KanbanBoardProps) => {
         .from('deals')
         .update({ 
           stage: targetStage,
-          last_activity_time: new Date().toISOString(),
           modified_by: user.id
         })
         .eq('id', dealId);
@@ -115,6 +116,8 @@ const KanbanBoard = ({ deals, onRefresh }: KanbanBoardProps) => {
     return deals.filter(deal => deal.stage === stage);
   };
 
+  const visibleStages = getVisibleStages(deals);
+
   const handleStageDialogSuccess = () => {
     setStageDialog({ open: false, deal: null, targetStage: '' });
     onRefresh();
@@ -123,13 +126,18 @@ const KanbanBoard = ({ deals, onRefresh }: KanbanBoardProps) => {
   return (
     <>
       <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4 lg:gap-6 min-h-[600px] w-full">
-          {DEAL_STAGES.map((stage) => (
+        <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 min-h-[600px] w-full ${
+          visibleStages.length <= 3 ? 'lg:grid-cols-3' : 
+          visibleStages.length <= 5 ? 'lg:grid-cols-5' : 'lg:grid-cols-7'
+        }`}>
+          {visibleStages.map((stage) => (
             <KanbanColumn
               key={stage}
               stage={stage}
               deals={getDealsForStage(stage)}
               onRefresh={onRefresh}
+              onEditDeal={onEditDeal}
+              onDeleteDeal={onDeleteDeal}
             />
           ))}
         </div>
@@ -137,7 +145,7 @@ const KanbanBoard = ({ deals, onRefresh }: KanbanBoardProps) => {
         <DragOverlay>
           {activeDeal ? (
             <Card className="rotate-2 opacity-90 shadow-xl border-2 border-blue-300 bg-white">
-              <DealCard deal={activeDeal} onRefresh={onRefresh} />
+              <DealCard deal={activeDeal} onRefresh={onRefresh} onEdit={onEditDeal} />
             </Card>
           ) : null}
         </DragOverlay>

@@ -75,19 +75,39 @@ const RegularMeetingLayout = ({
         </CardContent>
       </Card>
 
+      {/* Display Teams Meeting Copy Button for existing meetings */}
+      {isEditing && formData.teams_link && (
+        <Card className="mb-4">
+          <CardHeader>
+            <CardTitle>Teams Meeting</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label>Meeting Join URL</Label>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  navigator.clipboard.writeText(formData.teams_link).then(() => {
+                    // Using a simple alert for now since we don't have toast access here
+                    alert('Teams meeting link copied to clipboard!');
+                  }).catch(() => {
+                    alert('Failed to copy link to clipboard');
+                  });
+                }}
+              >
+                <Link className="w-4 h-4 mr-2" />
+                Copy Meeting Link
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex justify-between items-center pt-4">
         <div>
-          {isEditing && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onLinkToDeals}
-              className="flex items-center gap-2"
-            >
-              <Link className="h-4 w-4" />
-              Link to Deals Pipeline
-            </Button>
-          )}
+          {/* Removed Link to Deals Pipeline button from edit mode */}
         </div>
         
         <div className="flex space-x-2">

@@ -10,6 +10,8 @@ interface KanbanColumnProps {
   stage: string;
   deals: Deal[];
   onRefresh: () => void;
+  onEditDeal?: (deal: Deal) => void;
+  onDeleteDeal?: (dealId: string) => void;
 }
 
 const getStageColor = (stage: string) => {
@@ -60,7 +62,7 @@ const getStageProgress = (deals: Deal[]) => {
   return Math.round((completedDeals.length / deals.length) * 100);
 };
 
-const KanbanColumn = ({ stage, deals, onRefresh }: KanbanColumnProps) => {
+const KanbanColumn = ({ stage, deals, onRefresh, onEditDeal, onDeleteDeal }: KanbanColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({
     id: stage,
   });
@@ -111,7 +113,7 @@ const KanbanColumn = ({ stage, deals, onRefresh }: KanbanColumnProps) => {
           className="space-y-4 min-h-[420px] px-4 pb-4"
         >
           {deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} onRefresh={onRefresh} />
+            <DealCard key={deal.id} deal={deal} onRefresh={onRefresh} onEdit={onEditDeal} />
           ))}
           {deals.length === 0 && (
             <div className="flex items-center justify-center h-32 text-gray-400 text-sm">

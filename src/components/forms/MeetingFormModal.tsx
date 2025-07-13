@@ -65,6 +65,7 @@ const MeetingFormModal = ({ meeting, onSuccess, onCancel, initialLeadData, dealI
     }
     
     console.log('Opening Link to Deals dialog for meeting:', meeting.id, meeting.meeting_title);
+    console.log('Current meeting data:', meeting);
     setIsLinkDialogOpen(true);
   };
 

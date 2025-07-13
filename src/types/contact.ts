@@ -26,5 +26,5 @@ export interface Contact {
   created_by_name?: string;
   modified_by: string;
   modified_by_name?: string;
-  fax: string;
+  
 }

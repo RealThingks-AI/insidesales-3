@@ -11,7 +11,6 @@ import DefaultEmailTemplates from "@/components/DefaultEmailTemplates";
 
 // Import pages
 import Index from "./pages/Index";
-import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Contacts from "./pages/Contacts";
 import ContactsModule from "./pages/ContactsModule";
@@ -40,7 +39,6 @@ const App = () => {
           {user && <DefaultEmailTemplates />}
           <Routes>
             <Route path="/" element={user ? <Navigate to="/dashboard" /> : <Index />} />
-            <Route path="/auth" element={!user ? <Auth /> : <Navigate to="/dashboard" />} />
             
             <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
               <Route path="dashboard" element={<Dashboard />} />

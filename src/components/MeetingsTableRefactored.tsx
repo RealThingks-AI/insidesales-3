@@ -1,15 +1,23 @@
 
-import { Calendar, ExternalLink, User, Building, DollarSign } from 'lucide-react';
+import { Calendar, ExternalLink, User, Building, DollarSign, Edit, Trash2, MoreHorizontal, CheckCircle, Clock, Users, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import GenericTable from '@/components/GenericTable';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useMeetingOutcomes } from '@/hooks/useMeetingOutcomes';
+import { MeetingOutcomeForm } from '@/components/forms/MeetingOutcomeForm';
+import LinkToDealDialog from '@/components/deals/LinkToDealDialog';
+import { useState } from 'react';
 
 interface MeetingColumn {
   key: string;
   label: string;
   visible: boolean;
+  required?: boolean;
 }
 
 interface Meeting {
@@ -25,6 +33,8 @@ interface Meeting {
   created_at: string;
   updated_at: string;
   created_by: string;
+  organizer_name?: string;
+  organizer_email?: string;
 }
 
 interface MeetingsTableRefactoredProps {
@@ -48,6 +58,12 @@ const MeetingsTableRefactored = ({
   onToggleSelect,
   isDeleting = false
 }: MeetingsTableRefactoredProps) => {
+  const [showOutcomeDialog, setShowOutcomeDialog] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
+  const [editingOutcome, setEditingOutcome] = useState<any>(null);
+  
+  const { outcomes, refreshOutcomes } = useMeetingOutcomes();
   const handleDeleteMeeting = async (meetingId: string) => {
     try {
       console.log('Attempting to delete meeting:', meetingId);
@@ -85,95 +101,351 @@ const MeetingsTableRefactored = ({
     }
   };
 
-  const renderCellValue = (meeting: Meeting, columnKey: string): React.ReactNode => {
-    // Handle special cases first before accessing meeting properties
-    if (columnKey === 'start_time') {
-      return meeting.start_time ? new Date(`${meeting.date}T${meeting.start_time}`).toLocaleString() : '-';
-    }
-    
-    if (columnKey === 'participants') {
-      return meeting.participants && meeting.participants.length > 0 ? `${meeting.participants.length} participant(s)` : '-';
-    }
-    
-    if (columnKey === 'teams_link' && meeting.teams_link) {
-      return (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => window.open(meeting.teams_link, '_blank')}
-          className="flex items-center gap-1"
-        >
-          <ExternalLink className="h-3 w-3" />
-          Join
-        </Button>
-      );
-    }
-    
-    // Handle all other basic properties by safely accessing them
-    let value: any;
-    switch (columnKey) {
-      case 'meeting_title':
-        value = meeting.meeting_title;
-        break;
-      case 'date':
-        value = meeting.date;
-        break;
-      case 'duration':
-        value = meeting.duration;
-        break;
-      case 'location':
-        value = meeting.location;
-        break;
-      case 'timezone':
-        value = meeting.timezone;
-        break;
-      case 'created_at':
-        value = meeting.created_at ? new Date(meeting.created_at).toLocaleString() : '-';
-        break;
-      case 'updated_at':
-        value = meeting.updated_at ? new Date(meeting.updated_at).toLocaleString() : '-';
-        break;
-      case 'created_by':
-        value = meeting.created_by;
-        break;
-      default:
-        // For any other column, try to access it safely
-        value = (meeting as any)[columnKey];
-        break;
-    }
-    
-    // Handle all other values - ensure we never return objects
-    if (value === null || value === undefined) {
-      return '-';
-    }
-    
-    if (typeof value === 'object') {
-      if (Array.isArray(value)) {
-        return value.length > 0 ? value.join(', ') : '-';
-      }
-      // For any other objects, convert to string representation
-      return '-';
-    }
-    
-    // Convert primitive values to strings
-    return String(value) || '-';
+  const isPastMeeting = (meeting: Meeting) => {
+    const meetingDateTime = new Date(`${meeting.date}T${meeting.start_time}`);
+    return meetingDateTime < new Date();
   };
 
+  const isMeetingCompleted = (meeting: Meeting) => {
+    const meetingDateTime = new Date(`${meeting.date}T${meeting.start_time}`);
+    const durationInMs = getDurationInMs(meeting.duration);
+    const endTime = new Date(meetingDateTime.getTime() + durationInMs);
+    return endTime < new Date();
+  };
+
+  const getDurationInMs = (duration: string) => {
+    switch (duration) {
+      case '15 min': return 15 * 60 * 1000;
+      case '30 min': return 30 * 60 * 1000;
+      case '1 hour': return 60 * 60 * 1000;
+      case '2 hours': return 120 * 60 * 1000;
+      default: return 60 * 60 * 1000;
+    }
+  };
+
+  const getMeetingOutcome = (meetingId: string) => {
+    return outcomes.get(meetingId);
+  };
+
+  const handleLogOutcome = (meeting: Meeting) => {
+    setSelectedMeeting(meeting);
+    setEditingOutcome(null);
+    setShowOutcomeDialog(true);
+  };
+
+  const handleEditOutcome = (meeting: Meeting) => {
+    const outcome = getMeetingOutcome(meeting.id);
+    setSelectedMeeting(meeting);
+    setEditingOutcome(outcome);
+    setShowOutcomeDialog(true);
+  };
+
+  const handleLinkToDeal = (meeting: Meeting) => {
+    setSelectedMeeting(meeting);
+    setShowLinkDialog(true);
+  };
+
+  const handleOutcomeSuccess = () => {
+    setShowOutcomeDialog(false);
+    setSelectedMeeting(null);
+    setEditingOutcome(null);
+    refreshOutcomes();
+  };
+
+
+  const renderActions = (meeting: Meeting) => {
+    const outcome = getMeetingOutcome(meeting.id);
+    const isCompleted = isMeetingCompleted(meeting);
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          {!isCompleted && (
+            <DropdownMenuItem onClick={() => onEditMeeting(meeting)}>
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Meeting
+            </DropdownMenuItem>
+          )}
+          
+          <DropdownMenuItem 
+            onClick={() => onDeleteMeeting(meeting.id)}
+            className="text-destructive"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Meeting
+          </DropdownMenuItem>
+          
+          {meeting.teams_link && (
+            <DropdownMenuItem onClick={() => window.open(meeting.teams_link, '_blank')}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Join Meeting
+            </DropdownMenuItem>
+          )}
+          
+          {outcome?.interested_in_deal && (
+            <DropdownMenuItem onClick={() => handleLinkToDeal(meeting)}>
+              <DollarSign className="h-4 w-4 mr-2" />
+              Link to Deal
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
+  const renderTableHeaders = () => {
+    const headers = [
+      <TableHead key="checkbox" className="w-12">
+        <Checkbox 
+          checked={selectedItems.length === meetings.length && meetings.length > 0}
+          onCheckedChange={(checked) => {
+            if (checked) {
+              meetings.forEach(meeting => {
+                if (!selectedItems.includes(meeting.id)) {
+                  onToggleSelect(meeting.id);
+                }
+              });
+            } else {
+              selectedItems.forEach(id => onToggleSelect(id));
+            }
+          }}
+        />
+      </TableHead>
+    ];
+
+    visibleColumns.forEach(column => {
+      switch (column.key) {
+        case 'meeting_title':
+          headers.push(<TableHead key="title">Title</TableHead>);
+          break;
+        case 'date_time':
+          headers.push(<TableHead key="date_time">Date & Time</TableHead>);
+          break;
+        case 'duration':
+          headers.push(<TableHead key="duration">Duration</TableHead>);
+          break;
+        case 'location':
+          headers.push(<TableHead key="location">Location</TableHead>);
+          break;
+        case 'organizer':
+          headers.push(<TableHead key="organizer">Organizer</TableHead>);
+          break;
+        case 'participants':
+          headers.push(<TableHead key="participants">Participants</TableHead>);
+          break;
+        case 'status':
+          headers.push(<TableHead key="status">Status</TableHead>);
+          break;
+        case 'log_outcome':
+          headers.push(<TableHead key="log_outcome">Log Outcome</TableHead>);
+          break;
+      }
+    });
+
+    headers.push(<TableHead key="actions" className="w-20">Actions</TableHead>);
+    return headers;
+  };
+
+  const renderTableCells = (meeting: Meeting) => {
+    const outcome = getMeetingOutcome(meeting.id);
+    const isCompleted = isMeetingCompleted(meeting);
+    
+    const cells = [
+      <TableCell key="checkbox" onClick={(e) => e.stopPropagation()}>
+        <Checkbox 
+          checked={selectedItems.includes(meeting.id)}
+          onCheckedChange={() => onToggleSelect(meeting.id)}
+        />
+      </TableCell>
+    ];
+
+    visibleColumns.forEach(column => {
+      switch (column.key) {
+        case 'meeting_title':
+          cells.push(
+            <TableCell key="title" className="font-medium">
+              <div className="flex items-center gap-2">
+                {meeting.meeting_title}
+                {outcome && (
+                  <Badge variant="secondary" className="text-xs">
+                    Outcome Logged
+                  </Badge>
+                )}
+              </div>
+            </TableCell>
+          );
+          break;
+        case 'date_time':
+          cells.push(
+            <TableCell key="date_time">
+              <div className="flex items-center gap-1">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span>{new Date(`${meeting.date}T${meeting.start_time}`).toLocaleString()}</span>
+              </div>
+            </TableCell>
+          );
+          break;
+        case 'duration':
+          cells.push(<TableCell key="duration">{meeting.duration}</TableCell>);
+          break;
+        case 'location':
+          cells.push(
+            <TableCell key="location">
+              <div className="flex items-center gap-1">
+                <Building className="h-4 w-4 text-muted-foreground" />
+                <span>{meeting.location}</span>
+              </div>
+            </TableCell>
+          );
+          break;
+        case 'organizer':
+          cells.push(
+            <TableCell key="organizer">
+              <div className="flex items-center gap-1">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span>{meeting.organizer_name || 'Unknown'}</span>
+              </div>
+            </TableCell>
+          );
+          break;
+        case 'participants':
+          cells.push(
+            <TableCell key="participants">
+              <div className="flex items-center gap-1">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span>{meeting.participants?.join(', ') || 'No participants'}</span>
+              </div>
+            </TableCell>
+          );
+          break;
+        case 'status':
+          cells.push(
+            <TableCell key="status">
+              <Badge variant={isCompleted ? "secondary" : "default"}>
+                {isCompleted ? (
+                  <><Clock className="h-3 w-3 mr-1" />Completed</>
+                ) : (
+                  <><Clock className="h-3 w-3 mr-1" />Upcoming</>
+                )}
+              </Badge>
+            </TableCell>
+          );
+          break;
+        case 'log_outcome':
+          cells.push(
+            <TableCell key="log_outcome">
+              {isCompleted && !outcome && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleLogOutcome(meeting);
+                  }}
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Log Outcome
+                </Button>
+              )}
+              {outcome && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditOutcome(meeting);
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit Outcome
+                </Button>
+              )}
+            </TableCell>
+          );
+          break;
+      }
+    });
+
+    cells.push(
+      <TableCell key="actions" onClick={(e) => e.stopPropagation()}>
+        {renderActions(meeting)}
+      </TableCell>
+    );
+
+    return cells;
+  };
+
+  if (meetings.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No meetings found</h3>
+        <p className="text-gray-600 mb-4">Get started by scheduling your first meeting.</p>
+        <Button onClick={onAddMeeting}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Meeting
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <GenericTable
-      data={meetings}
-      columns={visibleColumns}
-      onEdit={onEditMeeting}
-      onDelete={handleDeleteMeeting}
-      onAdd={onAddMeeting}
-      selectedItems={selectedItems}
-      onToggleSelect={onToggleSelect}
-      emptyIcon={<Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />}
-      emptyTitle="No meetings found"
-      emptyDescription="Get started by scheduling your first meeting."
-      renderCellValue={renderCellValue}
-      isDeleting={isDeleting}
-    />
+    <>
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {renderTableHeaders()}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {meetings.map((meeting) => {
+              const isCompleted = isMeetingCompleted(meeting);
+              
+              return (
+                <TableRow 
+                  key={meeting.id}
+                  className={`cursor-pointer hover:bg-muted/50 ${isCompleted ? 'opacity-75' : ''}`}
+                  onClick={() => !isCompleted && onEditMeeting(meeting)}
+                >
+                  {renderTableCells(meeting)}
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Meeting Outcome Dialog */}
+      {selectedMeeting && (
+        <MeetingOutcomeForm
+          meeting={selectedMeeting}
+          outcome={editingOutcome}
+          open={showOutcomeDialog}
+          onOpenChange={setShowOutcomeDialog}
+          onOutcomeSaved={handleOutcomeSuccess}
+        />
+      )}
+
+      {/* Link to Deal Dialog */}
+      {selectedMeeting && (
+        <LinkToDealDialog
+          open={showLinkDialog}
+          onOpenChange={setShowLinkDialog}
+          meetingId={selectedMeeting.id}
+          meetingTitle={selectedMeeting.meeting_title}
+          onSuccess={() => {
+            setShowLinkDialog(false);
+            setSelectedMeeting(null);
+          }}
+        />
+      )}
+    </>
   );
 };
 

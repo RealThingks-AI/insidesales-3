@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Search } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import ContactsHeader from '@/components/ContactsModuleHeader';
+import ContactColumnCustomizer from '@/components/ContactColumnCustomizer';
 import ContactsTableRefactored from '@/components/ContactsTableRefactored';
 import AddContactModuleForm from '@/components/forms/AddContactModuleForm';
 import EditContactModuleForm from '@/components/forms/EditContactModuleForm';
@@ -186,13 +187,35 @@ const ContactsModule = () => {
 
   return (
     <div className="p-6">
-      <ContactsHeader 
-        onAddContact={() => setShowAddForm(true)}
-        columns={columns}
-        onColumnsChange={setColumns}
-      />
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Contacts</h1>
+        </div>
+        <div className="flex items-center space-x-3">
+          <ContactColumnCustomizer 
+            columns={columns} 
+            onColumnsChange={setColumns} 
+          />
+          <Button onClick={() => setShowAddForm(true)} size="default">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Contact
+          </Button>
+          <ActionsDropdown
+            onImport={handleImport}
+            onExportAll={() => handleExportAll(contacts, 'contacts')}
+            onExportSelected={() => handleExportSelected(contacts, selectedItems, 'contacts')}
+            onExportFiltered={() => handleExportFiltered(filteredContacts, 'contacts')}
+            onBulkDelete={handleBulkDelete}
+            onBulkUpdateOwner={handleBulkChangeOwner}
+            hasSelected={hasSelection}
+            hasFiltered={searchTerm.length > 0}
+            selectedItems={selectedItems}
+            moduleName="Contacts"
+          />
+        </div>
+      </div>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6">
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
@@ -202,18 +225,6 @@ const ContactsModule = () => {
             className="pl-10"
           />
         </div>
-        <ActionsDropdown
-          onImport={handleImport}
-          onExportAll={() => handleExportAll(contacts, 'contacts')}
-          onExportSelected={() => handleExportSelected(contacts, selectedItems, 'contacts')}
-          onExportFiltered={() => handleExportFiltered(filteredContacts, 'contacts')}
-          onBulkDelete={handleBulkDelete}
-          onBulkUpdateOwner={handleBulkChangeOwner}
-          hasSelected={hasSelection}
-          hasFiltered={searchTerm.length > 0}
-          selectedItems={selectedItems}
-          moduleName="Contacts"
-        />
       </div>
 
       <div className="mb-4">

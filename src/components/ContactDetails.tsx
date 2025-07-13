@@ -16,7 +16,7 @@ interface Contact {
   phone_no: string;
   mobile_no: string;
   linkedin: string;
-  fax: string;
+  
   website: string;
   contact_owner: string;
   contact_source: string;

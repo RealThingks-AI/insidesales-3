@@ -249,16 +249,7 @@ export const useWorkflow = () => {
 
       if (leadError) throw leadError;
 
-      // Record the conversion
-      const { error: conversionError } = await supabase
-        .from('lead_conversions')
-        .insert({
-          contact_id: contactId,
-          converted_by: (await supabase.auth.getUser()).data.user?.id,
-          conversion_notes: 'Converted from contact',
-        });
-
-      if (conversionError) throw conversionError;
+      // Conversion completed successfully - no legacy tracking needed
 
       toast({
         title: 'Success',

@@ -116,25 +116,7 @@ const ContactsTableActions = ({
 
       if (error) throw error;
 
-      // Create conversion record directly
-      try {
-        const { error: conversionError } = await supabase
-          .from('lead_conversions')
-          .insert({
-            contact_id: actualContactId,
-            lead_id: newLead.id,
-            converted_by: user.data.user.id,
-            conversion_notes: 'Contact converted to lead via table actions',
-          });
-
-        if (conversionError) {
-          console.error('Error creating conversion record:', conversionError);
-          // Continue with success since the main conversion worked
-        }
-      } catch (conversionErr) {
-        console.error('Failed to create conversion record:', conversionErr);
-        // Continue with success since the main conversion worked
-      }
+      // Lead conversion successful - no need for legacy conversion tracking
 
       toast({
         title: "Success",

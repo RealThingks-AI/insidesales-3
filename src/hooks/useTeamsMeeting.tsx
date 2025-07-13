@@ -11,10 +11,58 @@ interface CreateTeamsMeetingParams {
   location: 'Online' | 'In-Person';
   timezone: string;
   isEditing?: boolean;
-  existingTeamsLink?: string;
+  existingMeetingId?: string;
 }
 
 export const useTeamsMeeting = () => {
+  const deleteTeamsLink = async (meetingId: string) => {
+    if (!meetingId) {
+      return { success: true, message: 'No Teams meeting ID to delete' };
+    }
+
+    try {
+      console.log('Attempting to delete Teams meeting with ID:', meetingId);
+      
+      const { data, error } = await supabase.functions.invoke('delete-teams-meeting', {
+        body: {
+          meetingId: meetingId
+        }
+      });
+
+      console.log('Teams meeting deletion response:', { data, error });
+
+      if (error) {
+        console.error('Error deleting Teams meeting:', error);
+        toast({
+          variant: "destructive",
+          title: "Teams Meeting Deletion Warning",
+          description: "Could not delete the Teams meeting from calendar. Please delete it manually if needed.",
+        });
+        return { success: false, error: error.message };
+      }
+
+      if (data?.success) {
+        return { success: true, message: 'Teams meeting deleted successfully' };
+      } else {
+        console.error('Teams meeting deletion failed:', data);
+        toast({
+          variant: "destructive", 
+          title: "Teams Meeting Deletion Warning",
+          description: "Could not delete the Teams meeting from calendar. Please delete it manually if needed.",
+        });
+        return { success: false, error: 'Teams meeting deletion failed' };
+      }
+    } catch (error: any) {
+      console.error('Error in deleteTeamsLink:', error);
+      toast({
+        variant: "destructive",
+        title: "Teams Meeting Deletion Warning", 
+        description: "Could not delete the Teams meeting from calendar. Please delete it manually if needed.",
+      });
+      return { success: false, error: error.message };
+    }
+  };
+
   const createOrUpdateTeamsLink = async (params: CreateTeamsMeetingParams) => {
     const { 
       meeting_title, 
@@ -25,14 +73,20 @@ export const useTeamsMeeting = () => {
       location, 
       timezone, 
       isEditing = false,
-      existingTeamsLink 
+      existingMeetingId 
     } = params;
 
     if (!meeting_title || !date || !start_time) {
-      return null;
+      return { meetingUrl: null, meetingId: null };
     }
 
     try {
+      // If updating and there's an existing meeting ID, delete the old meeting first
+      if (isEditing && existingMeetingId) {
+        console.log('Deleting existing Teams meeting before creating new one...');
+        await deleteTeamsLink(existingMeetingId);
+      }
+
       const startDateTime = new Date(`${date}T${start_time}:00`);
       
       const durationMinutes = {
@@ -46,16 +100,16 @@ export const useTeamsMeeting = () => {
       const startTimeISO = startDateTime.toISOString();
       const endTimeISO = endDateTime.toISOString();
 
-      console.log(`${isEditing ? 'Updating' : 'Creating'} Teams meeting with data:`, {
+      console.log('Creating new Teams meeting with data:', {
         subject: meeting_title,
         startTime: startTimeISO,
         endTime: endTimeISO,
         attendees: participants,
         location,
-        timeZone: timezone,
-        isUpdate: isEditing && !!existingTeamsLink
+        timeZone: timezone
       });
 
+      // Always create a new meeting (since we deleted the old one if it existed)
       const { data, error } = await supabase.functions.invoke('create-teams-meeting', {
         body: {
           subject: meeting_title,
@@ -64,8 +118,8 @@ export const useTeamsMeeting = () => {
           attendees: participants,
           location,
           timeZone: timezone,
-          isUpdate: isEditing && !!existingTeamsLink,
-          existingTeamsLink: existingTeamsLink
+          isUpdate: false, // Always create new meeting for clean state
+          existingTeamsLink: null
         }
       });
 
@@ -78,15 +132,15 @@ export const useTeamsMeeting = () => {
           title: "Teams Meeting Error",
           description: `Unable to ${isEditing ? 'update' : 'create'} Teams meeting. The regular meeting will still be saved.`,
         });
-        return null;
+        return { meetingUrl: null, meetingId: null };
       }
 
-      if (data?.success && data?.meetingUrl) {
+      if (data?.success && data?.meetingUrl && data?.meetingId) {
         toast({
           title: `Teams meeting ${isEditing ? 'updated' : 'created'}`,
           description: `Microsoft Teams meeting ${isEditing ? 'has been updated' : 'link has been generated'}!`,
         });
-        return data.meetingUrl;
+        return { meetingUrl: data.meetingUrl, meetingId: data.meetingId };
       } else {
         console.error('Teams meeting failed:', data);
         toast({
@@ -94,7 +148,7 @@ export const useTeamsMeeting = () => {
           title: "Teams Meeting Error",
           description: `Unable to ${isEditing ? 'update' : 'create'} Teams meeting. The regular meeting will still be saved.`,
         });
-        return null;
+        return { meetingUrl: null, meetingId: null };
       }
     } catch (error: any) {
       console.error('Error in createOrUpdateTeamsLink:', error);
@@ -103,9 +157,9 @@ export const useTeamsMeeting = () => {
         title: "Teams Meeting Error",
         description: "An unexpected error occurred. The regular meeting will still be saved.",
       });
-      return null;
+      return { meetingUrl: null, meetingId: null };
     }
   };
 
-  return { createOrUpdateTeamsLink };
+  return { createOrUpdateTeamsLink, deleteTeamsLink };
 };

@@ -57,8 +57,7 @@ const StagePanelDialog = ({ open, onOpenChange, deal, onSuccess }: StagePanelDia
 
       const updateData = {
         ...formData,
-        modified_by: user.id,
-        last_activity_time: new Date().toISOString()
+        modified_by: user.id
       };
 
       const { error } = await supabase
@@ -137,7 +136,6 @@ const StagePanelDialog = ({ open, onOpenChange, deal, onSuccess }: StagePanelDia
       const saveData = {
         ...formData,
         modified_by: user.id,
-        last_activity_time: new Date().toISOString(),
         // For Discussions stage - explicitly ensure boolean fields are properly set
         ...(deal.stage === 'Discussions' && {
           customer_need_identified: formData.customer_need_identified === true,
@@ -248,8 +246,7 @@ const StagePanelDialog = ({ open, onOpenChange, deal, onSuccess }: StagePanelDia
       const updateData = {
         ...formData,
         stage: finalStage,
-        modified_by: user.id,
-        last_activity_time: new Date().toISOString()
+        modified_by: user.id
       };
 
       const { error } = await supabase
@@ -655,21 +652,6 @@ const StagePanelDialog = ({ open, onOpenChange, deal, onSuccess }: StagePanelDia
     const hasSupplierPortalAccess = formData.supplier_portal_access && ['Invited', 'Approved', 'Not Invited'].includes(formData.supplier_portal_access);
     const hasTimelineStart = formData.expected_deal_timeline_start && formData.expected_deal_timeline_start.trim().length > 0;
     const hasTimelineEnd = formData.expected_deal_timeline_end && formData.expected_deal_timeline_end.trim().length > 0;
-    
-    console.log('Qualified completion check:', {
-      hasNdaSigned,
-      hasBudgetConfirmed,
-      hasSupplierPortalAccess,
-      hasTimelineStart,
-      hasTimelineEnd,
-      formData: {
-        nda_signed: formData.nda_signed,
-        budget_confirmed: formData.budget_confirmed,
-        supplier_portal_access: formData.supplier_portal_access,
-        expected_deal_timeline_start: formData.expected_deal_timeline_start,
-        expected_deal_timeline_end: formData.expected_deal_timeline_end
-      }
-    });
     
     return hasNdaSigned && hasBudgetConfirmed && hasSupplierPortalAccess && hasTimelineStart && hasTimelineEnd;
   };

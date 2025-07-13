@@ -30,7 +30,6 @@ export interface Deal {
   learning_summary?: string;
   drop_summary?: string;
   internal_notes?: string;
-  last_activity_time?: string;
   confirmation_note?: string;
   begin_execution_date?: string;
   
@@ -179,6 +178,91 @@ export const getStageCompletionStatus = (deal: Deal): 'complete' | 'partial' | '
   if (completedCount === requirements.length) return 'complete';
   if (completedCount > 0) return 'partial';
   return 'incomplete';
+};
+
+// Helper function to get stage index for progression
+export const getStageIndex = (stage: string): number => {
+  return DEAL_STAGES.indexOf(stage);
+};
+
+// Helper function to get the highest stage a deal has reached
+export const getHighestStageReached = (deal: Deal): string => {
+  // If deal has fields from later stages filled, it means it has progressed through those stages
+  const stageIndex = getStageIndex(deal.stage);
+  let highestIndex = stageIndex;
+  
+  // Check if deal has completed later stage fields
+  if (deal.proposal_sent_date || deal.negotiation_status || deal.decision_expected_date) {
+    highestIndex = Math.max(highestIndex, getStageIndex('Offered'));
+  }
+  if (deal.rfq_value || deal.rfq_document_url || deal.product_service_scope) {
+    highestIndex = Math.max(highestIndex, getStageIndex('RFQ'));
+  }
+  if (deal.nda_signed !== null || deal.budget_confirmed || deal.supplier_portal_access) {
+    highestIndex = Math.max(highestIndex, getStageIndex('Qualified'));
+  }
+  if (deal.win_reason || deal.loss_reason || deal.drop_reason) {
+    highestIndex = Math.max(highestIndex, getStageIndex(deal.stage)); // Final stages
+  }
+  
+  return DEAL_STAGES[highestIndex];
+};
+
+// Helper function to determine visible stages for a set of deals
+export const getVisibleStages = (deals: Deal[]): string[] => {
+  // Always return all 7 stages to ensure full pipeline visibility
+  return DEAL_STAGES;
+};
+
+// Helper function to determine if a field should be visible for a deal
+export const isFieldVisibleForDeal = (deal: Deal, fieldKey: string): boolean => {
+  const highestStage = getHighestStageReached(deal);
+  const highestStageIndex = getStageIndex(highestStage);
+  
+  // Stage-specific field mapping
+  const stageFields = {
+    'Discussions': [
+      'customer_need_identified', 'need_summary', 'decision_maker_present', 
+      'customer_agreed_on_need', 'discussion_notes'
+    ],
+    'Qualified': [
+      'nda_signed', 'budget_confirmed', 'supplier_portal_access',
+      'expected_deal_timeline_start', 'expected_deal_timeline_end',
+      'budget_holder', 'decision_makers', 'timeline', 'supplier_portal_required'
+    ],
+    'RFQ': [
+      'rfq_value', 'rfq_document_url', 'rfq_document_link',
+      'product_service_scope', 'rfq_confirmation_note'
+    ],
+    'Offered': [
+      'proposal_sent_date', 'negotiation_status', 'decision_expected_date',
+      'offer_sent_date', 'revised_offer_notes', 'negotiation_notes'
+    ],
+    'Won': ['win_reason', 'execution_started', 'begin_execution_date', 'confirmation_note'],
+    'Lost': ['loss_reason', 'lost_to', 'learning_summary'],
+    'Dropped': ['drop_reason', 'drop_summary']
+  };
+  
+  // Basic fields are always visible
+  const basicFields = [
+    'deal_name', 'stage', 'amount', 'probability', 'closing_date', 
+    'currency', 'description', 'modified_at', 'created_at',
+    'internal_notes', 'related_lead_id', 'related_meeting_id'
+  ];
+  
+  if (basicFields.includes(fieldKey)) {
+    return true;
+  }
+  
+  // Check if field belongs to a stage that the deal has reached
+  for (let i = 0; i <= highestStageIndex; i++) {
+    const stage = DEAL_STAGES[i];
+    if (stageFields[stage]?.includes(fieldKey)) {
+      return true;
+    }
+  }
+  
+  return false;
 };
 
 export const useDeals = () => {

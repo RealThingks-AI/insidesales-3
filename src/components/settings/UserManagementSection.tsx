@@ -122,17 +122,15 @@ const UserManagementSection = () => {
   // Ensure users is always an array
   const users = Array.isArray(usersResponse) ? usersResponse : [];
 
-  // Fetch user profiles to get roles
-  const { data: profiles = [] } = useQuery({
-    queryKey: ['user-profiles'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, role, full_name');
-      if (error) throw error;
-      return data;
-    },
-  });
+  // Add real-time sync with polling every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('Auto-syncing users from auth.users...');
+      refetch();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [refetch]);
 
   // Create user mutation
   const createUserMutation = useMutation({
@@ -249,6 +247,23 @@ const UserManagementSection = () => {
     }
   };
 
+  const handleSyncUsers = async () => {
+    try {
+      await callUserAdminFunction('syncUsers');
+      toast({
+        title: "Sync completed",
+        description: "User data synced with Supabase Auth",
+      });
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Sync failed",
+        description: error.message || "Failed to sync users",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDeleteUser = (userId: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       deleteUserMutation.mutate(userId);
@@ -286,12 +301,15 @@ const UserManagementSection = () => {
   };
 
   const getUserRole = (userId: string) => {
-    const profile = profiles.find(p => p.id === userId);
-    return profile?.role || 'member';
+    const user = users.find(u => u.id === userId);
+    return user?.user_metadata?.role || user?.role || 'member';
   };
 
   const getDisplayName = (user: AuthUser) => {
-    return user.user_metadata?.display_name || user.email || 'N/A';
+    return user.user_metadata?.display_name || 
+           user.user_metadata?.full_name || 
+           user.email?.split('@')[0] || 
+           'N/A';
   };
 
   const formatDate = (dateString: string | null) => {
@@ -338,6 +356,10 @@ const UserManagementSection = () => {
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleSyncUsers}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Sync with Auth
+            </Button>
             <Button variant="outline" size="sm" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh

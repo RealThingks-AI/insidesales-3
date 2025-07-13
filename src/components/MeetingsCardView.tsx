@@ -1,8 +1,11 @@
-import { Calendar, Clock, MapPin, Users, ExternalLink, Edit, Trash2, Plus, User } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, ExternalLink, Edit, Trash2, Plus, User, ClipboardList } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useState } from 'react';
+import { MeetingOutcomeForm } from '@/components/forms/MeetingOutcomeForm';
+import { useMeetingOutcomes } from '@/hooks/useMeetingOutcomes';
 
 interface Meeting {
   id: string;
@@ -41,6 +44,35 @@ const MeetingsCardView = ({
   onToggleSelect,
   isDeleting = false
 }: MeetingsCardViewProps) => {
+  const [outcomeDialogOpen, setOutcomeDialogOpen] = useState(false);
+  const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
+  const { getOutcomeForMeeting, refreshOutcomes } = useMeetingOutcomes();
+
+  const isMeetingPast = (date: string, time: string) => {
+    try {
+      const meetingDateTime = new Date(`${date}T${time}`);
+      return meetingDateTime < new Date();
+    } catch {
+      return false;
+    }
+  };
+
+  const handleLogOutcome = (meeting: Meeting, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedMeeting(meeting);
+    setOutcomeDialogOpen(true);
+  };
+
+  const getOutcomeBadgeColor = (outcomeType: string) => {
+    switch (outcomeType) {
+      case 'Positive': return 'bg-green-100 text-green-800';
+      case 'Neutral': return 'bg-gray-100 text-gray-800';
+      case 'Negative': return 'bg-red-100 text-red-800';
+      case 'No Show': return 'bg-orange-100 text-orange-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   const formatDateTime = (date: string, time: string) => {
     try {
       const dateTime = new Date(`${date}T${time}`);
@@ -81,126 +113,174 @@ const MeetingsCardView = ({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {meetings.map((meeting) => (
-        <Card key={meeting.id} className="hover:shadow-md transition-shadow">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-3 flex-1">
-                <Checkbox
-                  checked={selectedItems.includes(meeting.id)}
-                  onCheckedChange={() => onToggleSelect(meeting.id)}
-                  className="mt-1"
-                />
-                <div className="flex-1 min-w-0">
-                  <CardTitle className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
-                    {meeting.meeting_title}
-                  </CardTitle>
-                </div>
-              </div>
-              <div className="flex items-center space-x-1 ml-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onEditMeeting(meeting)}
-                  className="h-8 w-8 p-0"
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDeleteMeeting(meeting.id)}
-                  disabled={isDeleting}
-                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            {/* Date and Time */}
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Calendar className="h-4 w-4" />
-              <span>{formatDateTime(meeting.date, meeting.start_time)}</span>
-            </div>
-
-            {/* Duration */}
-            <div className="flex items-center space-x-2">
-              <Clock className="h-4 w-4 text-gray-600" />
-              <Badge variant="secondary" className={getDurationColor(meeting.duration)}>
-                {meeting.duration}
-              </Badge>
-            </div>
-
-            {/* Location */}
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              {getLocationIcon(meeting.location)}
-              <span>{meeting.location}</span>
-              {meeting.timezone && (
-                <span className="text-xs text-gray-500">({meeting.timezone})</span>
-              )}
-            </div>
-
-            
-            {/* Organizer */}
-            {meeting.organizer_name && (
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <User className="h-4 w-4" />
-                <div className="flex flex-col">
-                  <span className="font-medium">{meeting.organizer_name}</span>
-                  {meeting.organizer_email && (
-                    <span className="text-xs text-gray-500">{meeting.organizer_email}</span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Participants */}
-            {meeting.participants && meeting.participants.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2 text-sm font-medium text-gray-700">
-                  <Users className="h-4 w-4" />
-                  <span>Participants ({meeting.participants.length})</span>
-                </div>
-                <div className="pl-6 space-y-1">
-                  {meeting.participants.map((participant, index) => (
-                    <div key={index} className="text-sm text-gray-600 flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
-                      <span className="truncate">{participant}</span>
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {meetings.map((meeting) => {
+          const outcome = getOutcomeForMeeting(meeting.id);
+          const isPast = isMeetingPast(meeting.date, meeting.start_time);
+          
+          return (
+            <Card 
+              key={meeting.id} 
+              className="hover:shadow-md transition-shadow cursor-pointer h-80 w-full flex flex-col" 
+              onClick={() => onEditMeeting(meeting)}
+            >
+              <CardHeader className="pb-2 flex-shrink-0">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start space-x-2 flex-1">
+                    <Checkbox
+                      checked={selectedItems.includes(meeting.id)}
+                      onCheckedChange={() => onToggleSelect(meeting.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2">
+                        {meeting.meeting_title}
+                      </CardTitle>
+                      {/* Outcome Badge */}
+                      {outcome && (
+                        <Badge variant="secondary" className={`${getOutcomeBadgeColor(outcome.outcome_type)} text-xs px-2 py-0.5 mt-1`}>
+                          Outcome: {outcome.outcome_type}
+                        </Badge>
+                      )}
                     </div>
-                  ))}
+                  </div>
+                  <div className="flex items-center space-x-1 ml-2">
+                    {/* Log Outcome Button - only show if meeting is past and no outcome logged, or if outcome exists (to edit) */}
+                    {(isPast && !outcome) && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleLogOutcome(meeting, e)}
+                        className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
+                        title="Log outcome"
+                      >
+                        <ClipboardList className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {outcome && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleLogOutcome(meeting, e)}
+                        className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
+                        title="Edit outcome"
+                      >
+                        <ClipboardList className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditMeeting(meeting);
+                      }}
+                      className="h-6 w-6 p-0"
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteMeeting(meeting.id);
+                      }}
+                      disabled={isDeleting}
+                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
+              </CardHeader>
 
-            {/* Description */}
-            {meeting.description && (
-              <div className="text-sm text-gray-600 line-clamp-2">
-                {meeting.description}
-              </div>
-            )}
+              <CardContent className="space-y-2 pt-0 flex-1 flex flex-col overflow-hidden">
+                {/* Date and Time */}
+                <div className="flex items-center space-x-2 text-xs text-gray-600">
+                  <Calendar className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">{formatDateTime(meeting.date, meeting.start_time)}</span>
+                </div>
 
-            {/* Teams Link */}
-            {meeting.teams_link && (
-              <div className="pt-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.open(meeting.teams_link, '_blank')}
-                  className="w-full"
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Join Meeting
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+                {/* Duration and Location */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-1">
+                    <Clock className="h-3 w-3 text-gray-600 flex-shrink-0" />
+                    <Badge variant="secondary" className={`${getDurationColor(meeting.duration)} text-xs px-1 py-0.5`}>
+                      {meeting.duration}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center space-x-1 text-xs text-gray-600">
+                    {getLocationIcon(meeting.location)}
+                    <span>{meeting.location}</span>
+                  </div>
+                </div>
+
+                {/* Organizer - Show Display Name */}
+                {meeting.organizer_name && (
+                  <div className="flex items-center space-x-1 text-xs text-gray-600">
+                    <User className="h-3 w-3 flex-shrink-0" />
+                    <span className="font-medium truncate">{meeting.organizer_name}</span>
+                  </div>
+                )}
+
+                {/* Participants - Always show all participants */}
+                {meeting.participants && meeting.participants.length > 0 && (
+                  <div className="flex-1 min-h-0">
+                    <div className="flex items-center space-x-1 text-xs font-medium text-gray-700 mb-1">
+                      <Users className="h-3 w-3 flex-shrink-0" />
+                      <span>Participants ({meeting.participants.length})</span>
+                    </div>
+                    <div className="space-y-1 overflow-y-auto max-h-20">
+                      {meeting.participants.map((participant, index) => (
+                        <div key={index} className="text-xs text-gray-600 flex items-center space-x-1">
+                          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full flex-shrink-0"></div>
+                          <span className="truncate">{participant}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Teams Link */}
+                {meeting.teams_link && (
+                  <div className="pt-1 mt-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(meeting.teams_link, '_blank');
+                      }}
+                      className="w-full h-6 text-xs"
+                    >
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      Join
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Meeting Outcome Form Dialog */}
+      {selectedMeeting && (
+        <MeetingOutcomeForm
+          meeting={selectedMeeting}
+          outcome={getOutcomeForMeeting(selectedMeeting.id)}
+          open={outcomeDialogOpen}
+          onOpenChange={setOutcomeDialogOpen}
+          onOutcomeSaved={() => {
+            refreshOutcomes();
+            setSelectedMeeting(null);
+          }}
+        />
+      )}
+    </>
   );
 };
 

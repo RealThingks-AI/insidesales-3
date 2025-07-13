@@ -14,14 +14,13 @@ const ContactsModuleHeader = ({ onAddContact, columns, onColumnsChange }: Contac
     <div className="flex justify-between items-center mb-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Contacts</h1>
-        <p className="text-gray-600 mt-2">Manage and track your business contacts</p>
       </div>
-      <div className="flex space-x-2">
+      <div className="flex items-center space-x-3">
         <ContactColumnCustomizer 
           columns={columns} 
           onColumnsChange={onColumnsChange} 
         />
-        <Button onClick={onAddContact}>
+        <Button onClick={onAddContact} size="default">
           <Plus className="h-4 w-4 mr-2" />
           Add Contact
         </Button>

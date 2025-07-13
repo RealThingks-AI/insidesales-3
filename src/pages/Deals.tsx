@@ -135,7 +135,7 @@ const Deals = () => {
 
       {/* View Content */}
       {viewMode === 'kanban' ? (
-        <KanbanBoard deals={deals} onRefresh={refetchDeals} />
+        <KanbanBoard deals={deals} onRefresh={refetchDeals} onEditDeal={handleEditDeal} onDeleteDeal={setDealToDelete} />
       ) : (
         <DealsListView 
           deals={deals} 
@@ -168,6 +168,7 @@ const Deals = () => {
             setIsEditDialogOpen(false);
             setSelectedDeal(null);
           }}
+          onDelete={handleDeleteDeal}
         />
       )}
 

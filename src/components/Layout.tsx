@@ -1,6 +1,8 @@
 
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useCurrentUserRole } from '@/hooks/useCurrentUserRole';
+import { useUserProfile } from '@/hooks/useUserProfile';
 import { Button } from '@/components/ui/button';
 import { 
   Home, 
@@ -12,12 +14,15 @@ import {
   Settings,
   LogOut,
   Menu,
-  X
+  X,
+  Shield
 } from 'lucide-react';
 import { useState } from 'react';
 
 const Layout = () => {
   const { signOut } = useAuth();
+  const { isAdmin, role, isLoading } = useCurrentUserRole();
+  const { displayName, loading: profileLoading } = useUserProfile();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -25,7 +30,7 @@ const Layout = () => {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('/auth');
+      navigate('/');
     } catch (error) {
       console.error('Error signing out:', error);
     }
@@ -91,14 +96,22 @@ const Layout = () => {
           </nav>
           
           <div className="p-4 border-t">
-            <Button
-              variant="outline"
-              className="w-full justify-start"
-              onClick={handleSignOut}
-            >
-              <LogOut className="mr-3 h-4 w-4" />
-              Sign Out
-            </Button>
+            <div className="flex items-center justify-between">
+              {/* Display Name */}
+              <div className="text-sm font-medium text-gray-700">
+                {!profileLoading && displayName ? displayName : 'User'}
+              </div>
+              
+              {/* Sign Out Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSignOut}
+                className="h-8 px-3"
+              >
+                <LogOut className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

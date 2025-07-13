@@ -41,8 +41,11 @@ interface Contact {
   lead_status: string;
   no_of_employees: number;
   annual_revenue: number;
-  fax: string;
+  
   state: string;
+  modified_time: string;
+  created_by: string;
+  modified_by: string;
 }
 
 interface ContactsTableRefactoredProps {

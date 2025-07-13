@@ -160,7 +160,6 @@ const DealsImportExport = ({ deals, onImportSuccess }: DealsImportExportProps) =
       
       // General fields
       deal.internal_notes || '',
-      deal.last_activity_time || '',
       deal.related_lead_id || '',
       deal.related_meeting_id || '',
       deal.created_at || ''
@@ -325,10 +324,9 @@ const DealsImportExport = ({ deals, onImportSuccess }: DealsImportExportProps) =
             
             // General fields
             internal_notes: values[42] || null,
-            last_activity_time: parseDate(values[43]) || new Date().toISOString(),
-            related_lead_id: values[44] || null,
-            related_meeting_id: values[45] || null,
-            created_at: parseDate(values[46]) || new Date().toISOString(),
+            related_lead_id: values[43] || null,
+            related_meeting_id: values[44] || null,
+            created_at: parseDate(values[45]) || new Date().toISOString(),
             
             created_by: user.id,
             modified_by: user.id

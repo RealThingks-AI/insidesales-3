@@ -13,6 +13,7 @@ interface Meeting {
   timezone: string;
   participants: string[];
   teams_link?: string;
+  meeting_id?: string;
   description?: string;
 }
 
@@ -47,6 +48,16 @@ export const useMeetingSubmission = () => {
       return;
     }
 
+    // Validate that at least one participant is selected
+    if (!formData.participants || formData.participants.length === 0) {
+      toast({
+        variant: "destructive", 
+        title: "Participants Required",
+        description: "Please select at least one lead as a participant for the meeting.",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     
     const isEditing = !!meeting;
@@ -64,9 +75,10 @@ export const useMeetingSubmission = () => {
       }
 
       let teamsLink = formData.teams_link;
+      let meetingId = meeting?.meeting_id;
       
       if (formData.location === 'Online') {
-        const updatedTeamsLink = await createOrUpdateTeamsLink({
+        const teamsResult = await createOrUpdateTeamsLink({
           meeting_title: formData.meeting_title,
           date: formData.date,
           start_time: formData.start_time,
@@ -75,10 +87,11 @@ export const useMeetingSubmission = () => {
           location: formData.location,
           timezone: formData.timezone,
           isEditing,
-          existingTeamsLink: meeting?.teams_link
+          existingMeetingId: meeting?.meeting_id
         });
-        if (updatedTeamsLink) {
-          teamsLink = updatedTeamsLink;
+        if (teamsResult?.meetingUrl) {
+          teamsLink = teamsResult.meetingUrl;
+          meetingId = teamsResult.meetingId;
         }
       }
 
@@ -94,6 +107,7 @@ export const useMeetingSubmission = () => {
           timezone: formData.timezone,
           participants: formData.participants,
           teams_link: teamsLink,
+          meeting_id: meetingId,
           description: formData.description,
           updated_at: new Date().toISOString()
         };
@@ -117,6 +131,7 @@ export const useMeetingSubmission = () => {
           timezone: formData.timezone,
           participants: formData.participants,
           teams_link: teamsLink,
+          meeting_id: meetingId,
           description: formData.description,
           created_by: user.id
         };

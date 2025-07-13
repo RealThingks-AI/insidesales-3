@@ -6,6 +6,8 @@ import { Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { format } from 'date-fns';
 import DealsColumnCustomizer, { type DealColumn } from './DealsColumnCustomizer';
 import type { Deal } from '@/hooks/useDeals';
+import { isFieldVisibleForDeal } from '@/hooks/useDeals';
+import { useStageBasedVisibility } from '@/hooks/useStageBasedVisibility';
 
 interface DealsListViewProps {
   deals: Deal[];
@@ -72,7 +74,6 @@ const DEFAULT_COLUMNS: DealColumn[] = [
   
   // General fields
   { key: 'internal_notes', label: 'Internal Notes', required: false, visible: false },
-  { key: 'last_activity_time', label: 'Last Activity Time', required: false, visible: false },
   { key: 'related_lead_id', label: 'Related Lead ID', required: false, visible: false },
   { key: 'related_meeting_id', label: 'Related Meeting ID', required: false, visible: false },
   { key: 'created_at', label: 'Created At', required: false, visible: false },
@@ -85,7 +86,24 @@ const DealsListView = ({ deals, onEdit, onDelete }: DealsListViewProps) => {
     direction: null
   });
 
-  const visibleColumns = useMemo(() => columns.filter(col => col.visible), [columns]);
+  const visibleColumns = useMemo(() => {
+    const baseVisibleColumns = columns.filter(col => col.visible);
+    
+    // For each deal, check if at least one deal can show each column based on stage visibility
+    const filteredColumns = baseVisibleColumns.filter(col => 
+      deals.some(deal => {
+        // Use stage-based visibility logic for each deal
+        const isBasicField = ['deal_name', 'stage', 'amount', 'probability', 'closing_date', 'currency', 'description', 'modified_at', 'created_at', 'internal_notes'].includes(col.key);
+        
+        if (isBasicField) return true;
+        
+        // Check if field is visible based on deal's current stage and progression
+        return isFieldVisibleForDeal(deal, col.key);
+      })
+    );
+    
+    return filteredColumns;
+  }, [columns, deals]);
 
   const sortedDeals = useMemo(() => {
     if (!sortConfig.key || !sortConfig.direction) return deals;
@@ -145,7 +163,6 @@ const DealsListView = ({ deals, onEdit, onDelete }: DealsListViewProps) => {
         return value ? format(new Date(value as string), 'MMM d, yyyy') : '-';
       case 'modified_at':
       case 'created_at':
-      case 'last_activity_time':
         return value ? format(new Date(value as string), 'MMM d, yyyy HH:mm') : '-';
       case 'customer_need_identified':
       case 'decision_maker_present':
@@ -235,11 +252,20 @@ const DealsListView = ({ deals, onEdit, onDelete }: DealsListViewProps) => {
           <TableBody>
             {sortedDeals.map((deal) => (
               <TableRow key={deal.id}>
-                {visibleColumns.map((column) => (
-                  <TableCell key={column.key}>
-                    {formatCellValue(deal, column.key)}
-                  </TableCell>
-                ))}
+                 {visibleColumns.map((column) => {
+                   // Check if this specific field should be visible for this specific deal
+                   const isBasicField = ['deal_name', 'stage', 'amount', 'probability', 'closing_date', 'currency', 'description', 'modified_at', 'created_at', 'internal_notes'].includes(column.key);
+                   const shouldShowField = isBasicField || isFieldVisibleForDeal(deal, column.key);
+                   
+                   return (
+                     <TableCell key={column.key}>
+                       {shouldShowField 
+                         ? formatCellValue(deal, column.key) 
+                         : '-'
+                       }
+                     </TableCell>
+                   );
+                 })}
                 <TableCell className="text-right">
                   <div className="flex items-center gap-2 justify-end">
                     <Button

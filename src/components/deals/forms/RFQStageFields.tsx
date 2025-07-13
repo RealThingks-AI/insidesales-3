@@ -5,12 +5,15 @@ import { Textarea } from '@/components/ui/textarea';
 interface RFQStageFieldsProps {
   formData: any;
   updateFormData: (updates: any) => void;
+  readOnly?: boolean;
 }
 
-export const RFQStageFields = ({ formData, updateFormData }: RFQStageFieldsProps) => {
+export const RFQStageFields = ({ formData, updateFormData, readOnly = false }: RFQStageFieldsProps) => {
   return (
-    <div className="space-y-4 border-t pt-4">
-      <h3 className="font-medium text-sm text-gray-700">RFQ Stage</h3>
+    <div className={`space-y-4 border-t pt-4 ${readOnly ? 'opacity-75' : ''}`}>
+      <h3 className={`font-medium text-sm ${readOnly ? 'text-gray-500' : 'text-gray-700'}`}>
+        RFQ Stage {readOnly && '(Read Only)'}
+      </h3>
       
       <div className="space-y-2">
         <Label htmlFor="rfq_value">RFQ Value</Label>
@@ -19,7 +22,8 @@ export const RFQStageFields = ({ formData, updateFormData }: RFQStageFieldsProps
           type="number"
           step="0.01"
           value={formData.rfq_value}
-          onChange={(e) => updateFormData({ rfq_value: e.target.value })}
+          onChange={readOnly ? undefined : (e) => updateFormData({ rfq_value: e.target.value })}
+          readOnly={readOnly}
         />
       </div>
 
@@ -29,7 +33,8 @@ export const RFQStageFields = ({ formData, updateFormData }: RFQStageFieldsProps
           id="rfq_document_url"
           type="url"
           value={formData.rfq_document_url}
-          onChange={(e) => updateFormData({ rfq_document_url: e.target.value })}
+          onChange={readOnly ? undefined : (e) => updateFormData({ rfq_document_url: e.target.value })}
+          readOnly={readOnly}
         />
       </div>
 
@@ -38,8 +43,9 @@ export const RFQStageFields = ({ formData, updateFormData }: RFQStageFieldsProps
         <Textarea
           id="product_service_scope"
           value={formData.product_service_scope}
-          onChange={(e) => updateFormData({ product_service_scope: e.target.value })}
+          onChange={readOnly ? undefined : (e) => updateFormData({ product_service_scope: e.target.value })}
           rows={2}
+          readOnly={readOnly}
         />
       </div>
 
@@ -48,8 +54,9 @@ export const RFQStageFields = ({ formData, updateFormData }: RFQStageFieldsProps
         <Textarea
           id="rfq_confirmation_note"
           value={formData.rfq_confirmation_note}
-          onChange={(e) => updateFormData({ rfq_confirmation_note: e.target.value })}
+          onChange={readOnly ? undefined : (e) => updateFormData({ rfq_confirmation_note: e.target.value })}
           rows={2}
+          readOnly={readOnly}
         />
       </div>
     </div>

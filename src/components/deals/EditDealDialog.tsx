@@ -1,6 +1,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -11,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { Deal } from '@/hooks/useDeals';
 import { useEditDealForm } from '@/hooks/useEditDealForm';
+import { useStageBasedVisibility } from '@/hooks/useStageBasedVisibility';
 import { BasicDealFields } from './forms/BasicDealFields';
 import { DiscussionsStageFields } from './forms/DiscussionsStageFields';
 import { QualifiedStageFields } from './forms/QualifiedStageFields';
@@ -18,17 +21,26 @@ import { RFQStageFields } from './forms/RFQStageFields';
 import { OfferedStageFields } from './forms/OfferedStageFields';
 import { FinalStageFields } from './forms/FinalStageFields';
 import { ExecutionFields } from './forms/ExecutionFields';
+import { LeadInformationSection } from './forms/LeadInformationSection';
 
 interface EditDealDialogProps {
   deal: Deal;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  onDelete?: (dealId: string) => void;
 }
 
-const EditDealDialog = ({ deal, open, onOpenChange, onSuccess }: EditDealDialogProps) => {
+const EditDealDialog = ({ deal, open, onOpenChange, onSuccess, onDelete }: EditDealDialogProps) => {
   const { formData, updateFormData } = useEditDealForm(deal);
   const [loading, setLoading] = useState(false);
+  const {
+    showPreviousStageFields,
+    setShowPreviousStageFields,
+    isFieldVisible,
+    isFieldReadOnly,
+    canShowPreviousStageFields
+  } = useStageBasedVisibility(deal);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +104,6 @@ const EditDealDialog = ({ deal, open, onOpenChange, onSuccess }: EditDealDialogP
         
         // General
         internal_notes: formData.internal_notes || null,
-        last_activity_time: new Date().toISOString(),
       };
 
       const { error } = await supabase
@@ -120,6 +131,13 @@ const EditDealDialog = ({ deal, open, onOpenChange, onSuccess }: EditDealDialogP
     }
   };
 
+  const handleDelete = () => {
+    if (onDelete && window.confirm('Are you sure you want to delete this deal? This action cannot be undone.')) {
+      onDelete(deal.id);
+      onOpenChange(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
@@ -127,21 +145,96 @@ const EditDealDialog = ({ deal, open, onOpenChange, onSuccess }: EditDealDialogP
           <DialogTitle>Edit Deal</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Lead Information Section */}
+          <LeadInformationSection 
+            dealId={deal.id} 
+            relatedLeadId={deal.related_lead_id || undefined} 
+          />
+          
           <BasicDealFields formData={formData} updateFormData={updateFormData} />
-          <DiscussionsStageFields formData={formData} updateFormData={updateFormData} />
-          <QualifiedStageFields formData={formData} updateFormData={updateFormData} />
-          <RFQStageFields formData={formData} updateFormData={updateFormData} />
-          <OfferedStageFields formData={formData} updateFormData={updateFormData} />
-          <FinalStageFields formData={formData} updateFormData={updateFormData} />
-          <ExecutionFields formData={formData} updateFormData={updateFormData} />
+          
+          {/* Previous Stage Fields Toggle */}
+          {canShowPreviousStageFields && (
+            <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg border-t">
+              <Switch
+                id="show-previous-fields"
+                checked={showPreviousStageFields}
+                onCheckedChange={setShowPreviousStageFields}
+              />
+              <Label htmlFor="show-previous-fields" className="text-sm font-medium">
+                Show Previous Stage Fields (Read-Only)
+              </Label>
+            </div>
+          )}
 
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Updating...' : 'Update Deal'}
-            </Button>
+          {/* Stage-based Fields */}
+          {isFieldVisible('customer_need_identified') && (
+            <DiscussionsStageFields 
+              formData={formData} 
+              updateFormData={updateFormData}
+              readOnly={isFieldReadOnly('customer_need_identified')}
+            />
+          )}
+          
+          {isFieldVisible('nda_signed') && (
+            <QualifiedStageFields 
+              formData={formData} 
+              updateFormData={updateFormData}
+              readOnly={isFieldReadOnly('nda_signed')}
+            />
+          )}
+          
+          {isFieldVisible('rfq_value') && (
+            <RFQStageFields 
+              formData={formData} 
+              updateFormData={updateFormData}
+              readOnly={isFieldReadOnly('rfq_value')}
+            />
+          )}
+          
+          {isFieldVisible('proposal_sent_date') && (
+            <OfferedStageFields 
+              formData={formData} 
+              updateFormData={updateFormData}
+              readOnly={isFieldReadOnly('proposal_sent_date')}
+            />
+          )}
+          
+          {(isFieldVisible('win_reason') || isFieldVisible('loss_reason') || isFieldVisible('drop_reason')) && (
+            <FinalStageFields 
+              formData={formData} 
+              updateFormData={updateFormData}
+              readOnly={isFieldReadOnly('win_reason')}
+            />
+          )}
+          
+          {isFieldVisible('execution_started') && (
+            <ExecutionFields 
+              formData={formData} 
+              updateFormData={updateFormData}
+              readOnly={isFieldReadOnly('execution_started')}
+            />
+          )}
+
+          <div className="flex justify-between items-center">
+            {onDelete && (
+              <Button 
+                type="button" 
+                variant="destructive" 
+                onClick={handleDelete}
+                className="text-red-600 hover:text-red-700"
+              >
+                Delete Deal
+              </Button>
+            )}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Updating...' : 'Update Deal'}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

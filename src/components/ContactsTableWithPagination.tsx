@@ -42,7 +42,9 @@ interface Contact {
   contact_owner_name?: string;
   created_by_name?: string;
   modified_by_name?: string;
-  fax: string;
+  modified_time: string;
+  created_by: string;
+  modified_by: string;
 }
 
 interface ContactsTableWithPaginationProps {

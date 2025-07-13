@@ -5,20 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, User, Building, CheckCircle, AlertCircle, XCircle, DollarSign, Percent } from 'lucide-react';
 import { Deal, getStageCompletionStatus } from '@/hooks/useDeals';
-import StagePanelDialog from './StagePanelDialog';
 
 interface DealCardProps {
   deal: Deal;
   onRefresh: () => void;
+  onEdit?: (deal: Deal) => void;
 }
 
-const DealCard = ({ deal, onRefresh }: DealCardProps) => {
-  const [isStagePanelOpen, setIsStagePanelOpen] = useState(false);
+const DealCard = ({ deal, onRefresh, onEdit }: DealCardProps) => {
+  // Remove StagePanelDialog state since we're using the edit modal from parent
   const [linkedLead, setLinkedLead] = useState<any>(null);
   const [linkedLeadOwner, setLinkedLeadOwner] = useState<any>(null);
-
   const completionStatus = getStageCompletionStatus(deal);
-  const isDraggingDisabled = completionStatus !== 'complete' && !['Won', 'Lost', 'Dropped'].includes(deal.stage);
+  // Enable dragging for all cards - only validation happens on drop
+  const isDraggingDisabled = false;
 
   const {
     attributes,
@@ -28,7 +28,7 @@ const DealCard = ({ deal, onRefresh }: DealCardProps) => {
     isDragging,
   } = useDraggable({
     id: deal.id,
-    disabled: isDraggingDisabled,
+    disabled: true, // Temporarily disable drag to fix click
   });
 
   const style = transform ? {
@@ -108,106 +108,58 @@ const DealCard = ({ deal, onRefresh }: DealCardProps) => {
     }).format(amount);
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Only handle click if it's not a drag operation
+    if (isDragging) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Deal card clicked, opening edit modal for:', deal.deal_name);
+    onEdit?.(deal);
+  };
+
   return (
-    <>
-      <Card 
-        ref={setNodeRef}
-        style={style}
-        className={`w-full max-w-72 bg-white border border-gray-200 cursor-pointer ${
-          isDragging ? 'opacity-50' : ''
-        } ${isDraggingDisabled ? 'cursor-not-allowed opacity-70' : 'hover:border-gray-400'}`}
-        onClick={() => setIsStagePanelOpen(true)}
-        {...attributes}
-        {...listeners}
-      >
-        <CardHeader className="p-3 pb-2">
-          <div className="flex justify-between items-start gap-2 mb-3">
-            <CardTitle className="text-sm font-semibold text-gray-900 leading-tight flex-1">
-              {deal.deal_name}
-            </CardTitle>
-            <div className="flex-shrink-0">
-              {getCompletionIcon()}
-            </div>
+    <Card 
+      ref={setNodeRef}
+      style={style}
+      className={`w-full max-w-72 bg-white border border-gray-200 cursor-pointer transition-all duration-200 ${
+        isDragging ? 'opacity-50 scale-105 shadow-lg' : 'hover:border-gray-400 hover:shadow-md'
+      }`}
+      onClick={handleCardClick}
+    >
+      <CardContent className="p-4">
+        {/* Deal Title */}
+        <div className="mb-3">
+          <h3 className="text-sm font-semibold text-gray-900 leading-tight">
+            {deal.deal_name}
+          </h3>
+        </div>
+        
+        {/* Company, Lead, and Owner Info */}
+        <div className="space-y-2">
+          <div className="text-xs text-gray-600">
+            <span className="font-medium text-gray-700">Company:</span>
+            <span className="ml-1 truncate">
+              {linkedLead?.company_name || 'No Company'}
+            </span>
           </div>
           
-          {/* Company, Lead, and Owner Info */}
-          <div className="space-y-1.5">
-            <div className="flex items-center text-xs text-gray-600">
-              <Building className="h-3 w-3 mr-2 text-gray-500 flex-shrink-0" />
-              <span className="truncate">
-                {linkedLead?.company_name || 'No Company'}
-              </span>
-            </div>
-            
-            <div className="flex items-center text-xs text-gray-600">
-              <User className="h-3 w-3 mr-2 text-gray-500 flex-shrink-0" />
-              <span className="truncate">
-                {linkedLead?.lead_name || 'No Lead Name'}
-              </span>
-            </div>
-            
-            <div className="flex items-center text-xs text-gray-600">
-              <User className="h-3 w-3 mr-2 text-gray-500 flex-shrink-0" />
-              <span className="truncate">
-                Owner: {linkedLeadOwner?.full_name || 'No Owner'}
-              </span>
-            </div>
+          <div className="text-xs text-gray-600">
+            <span className="font-medium text-gray-700">Lead:</span>
+            <span className="ml-1 truncate">
+              {linkedLead?.lead_name || 'No Lead Name'}
+            </span>
           </div>
-        </CardHeader>
-        
-        <CardContent className="p-3 pt-0">
-          {/* Deal Metrics */}
-          <div className="space-y-1.5">
-            {deal.amount && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center text-xs text-gray-600">
-                  <DollarSign className="h-3 w-3 mr-2 text-gray-500" />
-                  <span>Value</span>
-                </div>
-                <span className="text-xs font-medium text-gray-900">
-                  {formatCurrency(deal.amount)}
-                </span>
-              </div>
-            )}
-            
-            {deal.probability !== null && deal.probability !== undefined && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center text-xs text-gray-600">
-                  <Percent className="h-3 w-3 mr-2 text-gray-500" />
-                  <span>Probability</span>
-                </div>
-                <span className="text-xs font-medium text-gray-900">
-                  {deal.probability}%
-                </span>
-              </div>
-            )}
-            
-            {deal.closing_date && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center text-xs text-gray-600">
-                  <Calendar className="h-3 w-3 mr-2 text-gray-500" />
-                  <span>Close Date</span>
-                </div>
-                <span className="text-xs font-medium text-gray-900">
-                  {new Date(deal.closing_date).toLocaleDateString()}
-                </span>
-              </div>
-            )}
+          
+          <div className="text-xs text-gray-600">
+            <span className="font-medium text-gray-700">Owner:</span>
+            <span className="ml-1 truncate">
+              {linkedLeadOwner?.full_name || 'No Owner'}
+            </span>
           </div>
-
-        </CardContent>
-      </Card>
-
-      <StagePanelDialog
-        open={isStagePanelOpen}
-        onOpenChange={setIsStagePanelOpen}
-        deal={deal}
-        onSuccess={() => {
-          setIsStagePanelOpen(false);
-          onRefresh();
-        }}
-      />
-    </>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

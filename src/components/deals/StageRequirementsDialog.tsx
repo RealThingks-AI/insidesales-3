@@ -56,8 +56,7 @@ const StageRequirementsDialog = ({
       const updateData = {
         ...formData,
         stage: targetStage,
-        modified_by: user.id,
-        last_activity_time: new Date().toISOString()
+        modified_by: user.id
       };
 
       const { error } = await supabase

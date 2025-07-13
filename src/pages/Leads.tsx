@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Search } from 'lucide-react';
+import { Search, Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import AddLeadForm from '@/components/forms/AddLeadForm';
 import MeetingFormModal from '@/components/forms/MeetingFormModal';
@@ -221,9 +222,16 @@ const Leads = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Leads</h1>
-          <p className="text-gray-600 mt-2">Manage and track your business leads</p>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex items-center space-x-3">
+          <LeadColumnCustomizer
+            columns={columns}
+            onColumnsChange={setColumns}
+          />
+          <Button onClick={() => setShowAddForm(true)} size="default">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Lead
+          </Button>
           <ActionsDropdown
             onImport={handleImport}
             onExportAll={() => handleExportAll(leads, 'leads')}
@@ -235,11 +243,6 @@ const Leads = () => {
             hasFiltered={searchTerm.length > 0}
             selectedItems={selectedItems}
             moduleName="Leads"
-          />
-          <LeadsHeader 
-            onAddLead={() => setShowAddForm(true)}
-            columns={columns}
-            onColumnsChange={setColumns}
           />
         </div>
       </div>
