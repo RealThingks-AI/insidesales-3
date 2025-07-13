@@ -80,33 +80,49 @@ export const STAGE_FIELD_MAPPINGS: StageFieldMapping[] = [
 
 export const BASIC_FIELDS = [
   'deal_name',
-  'stage',
   'amount',
   'probability',
-  'closing_date',
   'currency',
   'description',
   'internal_notes'
 ];
 
+// Fields that should be hidden for specific stages
+export const STAGE_HIDDEN_FIELDS = {
+  'Discussions': [
+    'stage',
+    'closing_date',
+    'budget_holder',
+    'timeline',
+    'discussion_notes',
+    'decision_makers'
+  ]
+};
+
 export const useStageBasedVisibility = (deal: Deal) => {
-  const [showPreviousStageFields, setShowPreviousStageFields] = useState(false);
+  const [showAllFields, setShowAllFields] = useState(false);
 
   const currentStageIndex = useMemo(() => getStageIndex(deal.stage), [deal.stage]);
 
   const visibleStages = useMemo(() => {
-    if (showPreviousStageFields) {
+    if (showAllFields) {
       // Show all stages up to and including current stage
       return DEAL_STAGES.slice(0, currentStageIndex + 1);
     } else {
-      // Show only current stage and future stages
+      // Show only current stage
       return [deal.stage];
     }
-  }, [deal.stage, currentStageIndex, showPreviousStageFields]);
+  }, [deal.stage, currentStageIndex, showAllFields]);
 
   const isFieldVisible = useMemo(() => {
     return (fieldKey: string) => {
-      // Basic fields are always visible
+      // Check if field is hidden for current stage
+      const hiddenFields = STAGE_HIDDEN_FIELDS[deal.stage as keyof typeof STAGE_HIDDEN_FIELDS] || [];
+      if (!showAllFields && hiddenFields.includes(fieldKey)) {
+        return false;
+      }
+
+      // Basic fields are visible unless specifically hidden
       if (BASIC_FIELDS.includes(fieldKey)) {
         return true;
       }
@@ -116,12 +132,18 @@ export const useStageBasedVisibility = (deal: Deal) => {
         visibleStages.includes(mapping.stage) && mapping.fields.includes(fieldKey)
       );
     };
-  }, [visibleStages]);
+  }, [visibleStages, deal.stage, showAllFields]);
 
   const isFieldReadOnly = useMemo(() => {
     return (fieldKey: string) => {
-      // Basic fields are always editable
-      if (BASIC_FIELDS.includes(fieldKey)) {
+      // When showing all fields, fields that are hidden for current stage should be read-only
+      const hiddenFields = STAGE_HIDDEN_FIELDS[deal.stage as keyof typeof STAGE_HIDDEN_FIELDS] || [];
+      if (showAllFields && hiddenFields.includes(fieldKey)) {
+        return true;
+      }
+
+      // Basic fields are editable if they're normally visible for the stage
+      if (BASIC_FIELDS.includes(fieldKey) && !hiddenFields.includes(fieldKey)) {
         return false;
       }
 
@@ -137,7 +159,7 @@ export const useStageBasedVisibility = (deal: Deal) => {
       // Fields from previous stages are read-only
       return fieldStageIndex < currentStageIndex;
     };
-  }, [currentStageIndex]);
+  }, [currentStageIndex, deal.stage, showAllFields]);
 
   const getVisibleStageFieldMappings = useMemo(() => {
     return STAGE_FIELD_MAPPINGS.filter(mapping => 
@@ -150,8 +172,8 @@ export const useStageBasedVisibility = (deal: Deal) => {
   }, [currentStageIndex]);
 
   return {
-    showPreviousStageFields,
-    setShowPreviousStageFields,
+    showAllFields,
+    setShowAllFields,
     visibleStages,
     isFieldVisible,
     isFieldReadOnly,

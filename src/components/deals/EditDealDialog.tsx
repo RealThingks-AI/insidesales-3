@@ -35,8 +35,8 @@ const EditDealDialog = ({ deal, open, onOpenChange, onSuccess, onDelete }: EditD
   const { formData, updateFormData } = useEditDealForm(deal);
   const [loading, setLoading] = useState(false);
   const {
-    showPreviousStageFields,
-    setShowPreviousStageFields,
+    showAllFields,
+    setShowAllFields,
     isFieldVisible,
     isFieldReadOnly,
     canShowPreviousStageFields
@@ -151,21 +151,24 @@ const EditDealDialog = ({ deal, open, onOpenChange, onSuccess, onDelete }: EditD
             relatedLeadId={deal.related_lead_id || undefined} 
           />
           
-          <BasicDealFields formData={formData} updateFormData={updateFormData} />
+          <BasicDealFields 
+            formData={formData} 
+            updateFormData={updateFormData} 
+            isFieldVisible={isFieldVisible}
+            isFieldReadOnly={isFieldReadOnly}
+          />
           
-          {/* Previous Stage Fields Toggle */}
-          {canShowPreviousStageFields && (
-            <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg border-t">
-              <Switch
-                id="show-previous-fields"
-                checked={showPreviousStageFields}
-                onCheckedChange={setShowPreviousStageFields}
-              />
-              <Label htmlFor="show-previous-fields" className="text-sm font-medium">
-                Show Previous Stage Fields (Read-Only)
-              </Label>
-            </div>
-          )}
+          {/* View All Fields Toggle */}
+          <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg border-t">
+            <Switch
+              id="show-all-fields"
+              checked={showAllFields}
+              onCheckedChange={setShowAllFields}
+            />
+            <Label htmlFor="show-all-fields" className="text-sm font-medium">
+              View All Fields (Hidden fields are read-only)
+            </Label>
+          </div>
 
           {/* Stage-based Fields */}
           {isFieldVisible('customer_need_identified') && (
@@ -222,7 +225,7 @@ const EditDealDialog = ({ deal, open, onOpenChange, onSuccess, onDelete }: EditD
                 type="button" 
                 variant="destructive" 
                 onClick={handleDelete}
-                className="text-red-600 hover:text-red-700"
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 px-4 py-2 min-w-fit"
               >
                 Delete Deal
               </Button>
