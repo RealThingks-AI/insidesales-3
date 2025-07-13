@@ -56,16 +56,31 @@ const DealCard = ({ deal, onRefresh, onEdit }: DealCardProps) => {
 
         setLinkedLead(lead);
 
-        // Fetch lead owner profile if contact_owner exists
+        // Fetch lead owner profile and auth user data if contact_owner exists
         if (lead.contact_owner) {
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('full_name')
+            .select('full_name, "Email ID"')
             .eq('id', lead.contact_owner)
             .single();
 
           if (!profileError && profile) {
-            setLinkedLeadOwner(profile);
+            // Create display name using same logic as useUserProfile
+            let displayName = profile.full_name;
+            
+            if (!displayName && profile["Email ID"]) {
+              // Extract name from email (e.g., peter.jakobsson -> Peter Jakobsson)
+              const emailName = profile["Email ID"].split('@')[0];
+              displayName = emailName
+                .split('.')
+                .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                .join(' ');
+            }
+            
+            setLinkedLeadOwner({ 
+              ...profile, 
+              display_name: displayName || 'User' 
+            });
           }
         }
       } catch (error) {
@@ -154,7 +169,7 @@ const DealCard = ({ deal, onRefresh, onEdit }: DealCardProps) => {
           <div className="text-xs text-gray-600">
             <span className="font-medium text-gray-700">Owner:</span>
             <span className="ml-1 truncate">
-              {linkedLeadOwner?.full_name || 'No Owner'}
+              {linkedLeadOwner?.display_name || 'No Owner'}
             </span>
           </div>
         </div>
