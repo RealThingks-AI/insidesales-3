@@ -24,6 +24,7 @@ const ContactsModule = () => {
   const [showContactDetails, setShowContactDetails] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' | null }>({ key: '', direction: null });
 
   const filteredContacts = contacts.filter(contact =>
     contact.contact_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -31,10 +32,32 @@ const ContactsModule = () => {
     contact.company_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Apply sorting
+  const sortedContacts = [...filteredContacts].sort((a, b) => {
+    if (!sortConfig.key || !sortConfig.direction) return 0;
+    
+    const aValue = a[sortConfig.key as keyof Contact];
+    const bValue = b[sortConfig.key as keyof Contact];
+    
+    // Handle null/undefined values
+    if (aValue === null || aValue === undefined) return 1;
+    if (bValue === null || bValue === undefined) return -1;
+    
+    // Convert to string for comparison
+    const aStr = String(aValue).toLowerCase();
+    const bStr = String(bValue).toLowerCase();
+    
+    if (sortConfig.direction === 'asc') {
+      return aStr < bStr ? -1 : aStr > bStr ? 1 : 0;
+    } else {
+      return aStr > bStr ? -1 : aStr < bStr ? 1 : 0;
+    }
+  });
+
   const {
     selectedItems,
     toggleSelectItem,
-  } = useBulkActions(filteredContacts);
+  } = useBulkActions(sortedContacts);
 
   const handleAddSuccess = () => {
     setShowAddForm(false);
@@ -81,6 +104,24 @@ const ContactsModule = () => {
     }
   };
 
+  const handleSort = (columnKey: string) => {
+    setSortConfig(prev => {
+      if (prev.key === columnKey) {
+        // Toggle through: asc -> desc -> default (null)
+        if (prev.direction === 'asc') {
+          return { key: columnKey, direction: 'desc' };
+        } else if (prev.direction === 'desc') {
+          return { key: '', direction: null };
+        } else {
+          return { key: columnKey, direction: 'asc' };
+        }
+      } else {
+        // New column, start with asc
+        return { key: columnKey, direction: 'asc' };
+      }
+    });
+  };
+
   const visibleColumns = columns.filter(col => col.visible);
 
   if (loading) {
@@ -113,7 +154,7 @@ const ContactsModule = () => {
       <Card>
         <CardContent className="p-0">
           <ContactsTableWithPagination
-            contacts={filteredContacts}
+            contacts={sortedContacts}
             visibleColumns={visibleColumns}
             onViewContact={handleViewContact}
             onEditContact={handleEditContact}
@@ -122,6 +163,8 @@ const ContactsModule = () => {
             selectedItems={selectedItems}
             onToggleSelect={toggleSelectItem}
             onRefresh={fetchContacts}
+            onSort={handleSort}
+            sortConfig={sortConfig}
           />
         </CardContent>
       </Card>

@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Eye, Edit, Plus, Building, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Eye, Edit, Plus, Building, Trash2, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { ContactColumn } from './ContactColumnCustomizer';
 import { useBulkDelete } from '@/hooks/useBulkDelete';
 
@@ -57,6 +57,8 @@ interface ContactsTableWithPaginationProps {
   selectedItems: string[];
   onToggleSelect: (contactId: string) => void;
   onRefresh: () => void;
+  onSort?: (columnKey: string) => void;
+  sortConfig?: { key: string; direction: 'asc' | 'desc' | null };
 }
 
 const ITEMS_PER_PAGE = 100;
@@ -70,7 +72,9 @@ const ContactsTableWithPagination = ({
   onAddContact,
   selectedItems,
   onToggleSelect,
-  onRefresh
+  onRefresh,
+  onSort,
+  sortConfig
 }: ContactsTableWithPaginationProps) => {
   const [deleteContactId, setDeleteContactId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -177,6 +181,20 @@ const ContactsTableWithPagination = ({
     }
   };
 
+  const getSortIcon = (columnKey: string) => {
+    if (!onSort || sortConfig?.key !== columnKey) {
+      return <ArrowUpDown className="h-4 w-4" />;
+    }
+    
+    if (sortConfig.direction === 'asc') {
+      return <ArrowUp className="h-4 w-4" />;
+    } else if (sortConfig.direction === 'desc') {
+      return <ArrowDown className="h-4 w-4" />;
+    }
+    
+    return <ArrowUpDown className="h-4 w-4" />;
+  };
+
   // Reset to first page when contacts change
   if (currentPage > totalPages && totalPages > 0) {
     setCurrentPage(1);
@@ -228,7 +246,20 @@ const ContactsTableWithPagination = ({
               />
             </TableHead>
             {visibleColumns.map((column) => (
-              <TableHead key={column.key}>{column.label}</TableHead>
+              <TableHead key={column.key} className="min-w-[100px]">
+                {onSort ? (
+                  <Button
+                    variant="ghost"
+                    className="h-auto p-0 font-semibold hover:bg-transparent"
+                    onClick={() => onSort(column.key)}
+                  >
+                    {column.label}
+                    {getSortIcon(column.key)}
+                  </Button>
+                ) : (
+                  column.label
+                )}
+              </TableHead>
             ))}
             <TableHead>Actions</TableHead>
           </TableRow>
