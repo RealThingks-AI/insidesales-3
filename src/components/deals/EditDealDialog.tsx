@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Deal } from '@/hooks/useDeals';
+import { Deal, DEAL_STAGES, getStageIndex, canMoveToStage } from '@/hooks/useDeals';
 import { useEditDealForm } from '@/hooks/useEditDealForm';
 import { useStageBasedVisibility } from '@/hooks/useStageBasedVisibility';
 import { BasicDealFields } from './forms/BasicDealFields';
@@ -138,6 +138,127 @@ const EditDealDialog = ({ deal, open, onOpenChange, onSuccess, onDelete }: EditD
     }
   };
 
+  const getNextStage = () => {
+    const currentIndex = getStageIndex(deal.stage);
+    if (currentIndex < DEAL_STAGES.length - 1) {
+      return DEAL_STAGES[currentIndex + 1];
+    }
+    return null;
+  };
+
+  const canMoveToNextStage = () => {
+    const nextStage = getNextStage();
+    if (!nextStage) return false;
+    
+    // Create a temporary deal object with current form data to check if requirements are met
+    const tempDeal: Deal = {
+      ...deal,
+      deal_name: formData.deal_name,
+      stage: formData.stage,
+      amount: formData.amount ? parseFloat(formData.amount) : deal.amount,
+      currency: formData.currency,
+      probability: formData.probability ? parseInt(formData.probability) : deal.probability,
+      closing_date: formData.closing_date || deal.closing_date,
+      description: formData.description || deal.description,
+      customer_need_identified: formData.customer_need_identified,
+      need_summary: formData.need_summary,
+      decision_maker_present: formData.decision_maker_present,
+      customer_agreed_on_need: formData.customer_agreed_on_need as 'Yes' | 'No' | 'Partial',
+    };
+    
+    return canMoveToStage(tempDeal, nextStage);
+  };
+
+  const handleMoveToNextStage = async () => {
+    const nextStage = getNextStage();
+    if (!nextStage) return;
+    
+    setLoading(true);
+    try {
+      const dealData = {
+        deal_name: formData.deal_name,
+        stage: nextStage, // Move to next stage
+        amount: formData.amount ? parseFloat(formData.amount) : null,
+        currency: formData.currency,
+        probability: formData.probability ? parseInt(formData.probability) : null,
+        closing_date: formData.closing_date || null,
+        description: formData.description || null,
+        
+        // Discussions stage
+        customer_need_identified: formData.customer_need_identified,
+        need_summary: formData.need_summary || null,
+        decision_maker_present: formData.decision_maker_present,
+        customer_agreed_on_need: formData.customer_agreed_on_need || null,
+        discussion_notes: formData.discussion_notes || null,
+        
+        // Qualified stage
+        nda_signed: formData.nda_signed,
+        budget_confirmed: formData.budget_confirmed || null,
+        supplier_portal_access: formData.supplier_portal_access || null,
+        expected_deal_timeline_start: formData.expected_deal_timeline_start || null,
+        expected_deal_timeline_end: formData.expected_deal_timeline_end || null,
+        budget_holder: formData.budget_holder || null,
+        decision_makers: formData.decision_makers || null,
+        timeline: formData.timeline || null,
+        supplier_portal_required: formData.supplier_portal_required,
+        
+        // RFQ stage
+        rfq_value: formData.rfq_value ? parseFloat(formData.rfq_value) : null,
+        rfq_document_url: formData.rfq_document_url || null,
+        rfq_document_link: formData.rfq_document_link || null,
+        product_service_scope: formData.product_service_scope || null,
+        rfq_confirmation_note: formData.rfq_confirmation_note || null,
+        
+        // Offered stage
+        proposal_sent_date: formData.proposal_sent_date || null,
+        negotiation_status: formData.negotiation_status || null,
+        decision_expected_date: formData.decision_expected_date || null,
+        offer_sent_date: formData.offer_sent_date || null,
+        revised_offer_notes: formData.revised_offer_notes || null,
+        negotiation_notes: formData.negotiation_notes || null,
+        
+        // Final stages
+        win_reason: formData.win_reason || null,
+        loss_reason: formData.loss_reason || null,
+        lost_to: formData.lost_to || null,
+        drop_reason: formData.drop_reason || null,
+        drop_summary: formData.drop_summary || null,
+        learning_summary: formData.learning_summary || null,
+        
+        // Execution
+        execution_started: formData.execution_started,
+        begin_execution_date: formData.begin_execution_date || null,
+        confirmation_note: formData.confirmation_note || null,
+        
+        // General
+        internal_notes: formData.internal_notes || null,
+      };
+
+      const { error } = await supabase
+        .from('deals')
+        .update(dealData)
+        .eq('id', deal.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Deal moved to next stage",
+        description: `Deal moved to ${nextStage} stage successfully.`,
+      });
+
+      onSuccess();
+    } catch (error: any) {
+      console.error('Error moving deal to next stage:', error);
+      toast({
+        variant: "destructive",
+        title: "Error moving deal",
+        description: error.message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
@@ -240,6 +361,16 @@ const EditDealDialog = ({ deal, open, onOpenChange, onSuccess, onDelete }: EditD
               <Button type="submit" disabled={loading}>
                 {loading ? 'Updating...' : 'Update Deal'}
               </Button>
+              {getNextStage() && canMoveToNextStage() && (
+                <Button 
+                  type="button" 
+                  onClick={handleMoveToNextStage}
+                  disabled={loading}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  {loading ? 'Moving...' : `Move to ${getNextStage()}`}
+                </Button>
+              )}
             </div>
           </div>
         </form>
