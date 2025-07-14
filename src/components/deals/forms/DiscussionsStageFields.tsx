@@ -43,15 +43,6 @@ export const DiscussionsStageFields = ({ formData, updateFormData, readOnly = fa
         />
       </div>
 
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="decision_maker_present"
-          checked={formData.decision_maker_present}
-          onCheckedChange={readOnly ? undefined : (checked) => updateFormData({ decision_maker_present: checked as boolean })}
-          disabled={readOnly}
-        />
-        <Label htmlFor="decision_maker_present">Decision Maker Present</Label>
-      </div>
 
       <div className="space-y-2">
         <Label htmlFor="customer_agreed_on_need">Customer Agreed on Need</Label>

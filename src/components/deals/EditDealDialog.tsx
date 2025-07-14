@@ -156,19 +156,22 @@ const EditDealDialog = ({ deal, open, onOpenChange, onSuccess, onDelete }: EditD
             updateFormData={updateFormData} 
             isFieldVisible={isFieldVisible}
             isFieldReadOnly={isFieldReadOnly}
+            currentStage={deal.stage}
           />
           
-          {/* View All Fields Toggle */}
-          <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg border-t">
-            <Switch
-              id="show-all-fields"
-              checked={showAllFields}
-              onCheckedChange={setShowAllFields}
-            />
-            <Label htmlFor="show-all-fields" className="text-sm font-medium">
-              View All Fields (Hidden fields are read-only)
-            </Label>
-          </div>
+          {/* View All Fields Toggle - Hidden for Discussions stage */}
+          {deal.stage !== 'Discussions' && canShowPreviousStageFields && (
+            <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg border-t">
+              <Switch
+                id="show-all-fields"
+                checked={showAllFields}
+                onCheckedChange={setShowAllFields}
+              />
+              <Label htmlFor="show-all-fields" className="text-sm font-medium">
+                View All Fields (Hidden fields are read-only)
+              </Label>
+            </div>
+          )}
 
           {/* Stage-based Fields */}
           {isFieldVisible('customer_need_identified') && (

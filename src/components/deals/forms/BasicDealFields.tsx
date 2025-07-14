@@ -15,9 +15,10 @@ interface BasicDealFieldsProps {
   updateFormData: (updates: any) => void;
   isFieldVisible?: (fieldKey: string) => boolean;
   isFieldReadOnly?: (fieldKey: string) => boolean;
+  currentStage?: string;
 }
 
-export const BasicDealFields = ({ formData, updateFormData, isFieldVisible = () => true, isFieldReadOnly = () => false }: BasicDealFieldsProps) => {
+export const BasicDealFields = ({ formData, updateFormData, isFieldVisible = () => true, isFieldReadOnly = () => false, currentStage }: BasicDealFieldsProps) => {
   return (
     <>
       {isFieldVisible('deal_name') && (
@@ -121,7 +122,9 @@ export const BasicDealFields = ({ formData, updateFormData, isFieldVisible = () 
 
       {isFieldVisible('description') && (
         <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
+          <Label htmlFor="description">
+            {currentStage === 'Discussions' ? 'Meeting Description' : 'Description'}
+          </Label>
           <Textarea
             id="description"
             value={formData.description}

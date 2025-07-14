@@ -95,7 +95,9 @@ export const STAGE_HIDDEN_FIELDS = {
     'budget_holder',
     'timeline',
     'discussion_notes',
-    'decision_makers'
+    'decision_makers',
+    'amount',
+    'currency'
   ]
 };
 
