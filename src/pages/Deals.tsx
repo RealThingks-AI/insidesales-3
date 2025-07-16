@@ -20,7 +20,8 @@ import DealsListView from '@/components/deals/DealsListView';
 import DealsStats from '@/components/deals/DealsStats';
 import AddDealDialog from '@/components/deals/AddDealDialog';
 import EditDealDialog from '@/components/deals/EditDealDialog';
-import DealsImportExport from '@/components/deals/DealsImportExport';
+import ImportExportActions from '@/components/ImportExportActions';
+import { useImportExport } from '@/hooks/useImportExport';
 import { useDeals, type Deal } from '@/hooks/useDeals';
 
 const Deals = () => {
@@ -31,6 +32,17 @@ const Deals = () => {
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [isDeleting, setIsDeleting] = useState(false);
   const { deals, loading, refetchDeals } = useDeals();
+  
+  const { 
+    handleImport, 
+    handleExportAll, 
+    handleExportSelected, 
+    handleExportFiltered 
+  } = useImportExport({
+    moduleName: 'Deals',
+    onRefresh: refetchDeals,
+    tableName: 'deals'
+  });
 
   const handleEditDeal = (deal: Deal) => {
     console.log('Edit deal:', deal);
@@ -119,9 +131,14 @@ const Deals = () => {
             </Toggle>
           </div>
           
-          <DealsImportExport 
-            deals={deals}
-            onImportSuccess={refetchDeals}
+          <ImportExportActions
+            onImport={handleImport}
+            onExportAll={() => handleExportAll(deals, 'deals_export.csv')}
+            onExportSelected={() => handleExportSelected(deals, [], 'deals_selected.csv')}
+            onExportFiltered={() => handleExportFiltered(deals, 'deals_filtered.csv')}
+            hasSelected={false}
+            hasFiltered={false}
+            moduleName="Deals"
           />
           <Button onClick={() => setIsAddDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />

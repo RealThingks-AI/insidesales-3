@@ -353,13 +353,13 @@ const EditMeetingForm = ({ meeting, onSuccess, onCancel }: EditMeetingFormProps)
 
             {/* Participants */}
             <div>
-              <Label>Participants</Label>
+              <Label>Participants (Select from Leads) <span className="text-red-500">*</span></Label>
               <div className="space-y-2">
                 <div className="flex space-x-2">
                   <Input
                     value={participantInput}
                     onChange={(e) => setParticipantInput(e.target.value)}
-                    placeholder="Enter email address"
+                    placeholder="Enter lead name to search and add"
                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addParticipant())}
                   />
                   <Button type="button" onClick={addParticipant} variant="outline">
@@ -380,6 +380,9 @@ const EditMeetingForm = ({ meeting, onSuccess, onCancel }: EditMeetingFormProps)
                     </Badge>
                   ))}
                 </div>
+                {formData.participants.length === 0 && (
+                  <p className="text-sm text-red-500">At least one participant must be selected</p>
+                )}
               </div>
             </div>
           </CardContent>

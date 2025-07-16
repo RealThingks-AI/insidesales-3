@@ -68,31 +68,45 @@ const AddLeadForm = ({ onSuccess, onCancel, initialData, isEditing = false, lead
   useEffect(() => {
     const fetchUserProfile = async () => {
       if (user) {
-        const { data: profile, error } = await supabase
+        // First try to get display name from auth user metadata
+        const authDisplayName = user.user_metadata?.full_name || user.user_metadata?.name;
+        
+        // Then try to get from profiles table
+        const { data: profile } = await supabase
           .from('profiles')
           .select('full_name')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (profile && !error) {
-          const displayName = profile.full_name || 'Current User';
-          setUserProfile(displayName);
-          
-          if (isEditing && initialData?.contact_owner) {
-            // For editing, fetch the existing owner's name
-            const { data: ownerProfile, error: ownerError } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', initialData.contact_owner)
-              .single();
-            
-            if (ownerProfile && !ownerError) {
-              setFormData(prev => ({ ...prev, lead_owner: ownerProfile.full_name || 'Unknown User' }));
+        // Use auth metadata first, then profile, then extract name from email
+        const emailName = user.email ? user.email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : '';
+        const displayName = authDisplayName || profile?.full_name || emailName || 'Current User';
+        
+        setUserProfile(displayName);
+        
+        if (isEditing && initialData?.contact_owner) {
+          // For editing, fetch the existing owner's name using edge function
+          try {
+            const { data, error } = await supabase.functions.invoke('get-user-display-names', {
+              body: { userIds: [initialData.contact_owner] }
+            });
+
+            if (error) {
+              console.error('Error fetching user display name:', error);
+              setFormData(prev => ({ ...prev, lead_owner: 'Unknown User' }));
+            } else if (data?.userDisplayNames) {
+              const ownerDisplayName = data.userDisplayNames[initialData.contact_owner] || 'Unknown User';
+              setFormData(prev => ({ ...prev, lead_owner: ownerDisplayName }));
+            } else {
+              setFormData(prev => ({ ...prev, lead_owner: 'Unknown User' }));
             }
-          } else {
-            // For new leads, use current user
-            setFormData(prev => ({ ...prev, lead_owner: displayName }));
+          } catch (functionError) {
+            console.error('Error calling get-user-display-names function:', functionError);
+            setFormData(prev => ({ ...prev, lead_owner: 'Unknown User' }));
           }
+        } else {
+          // For new leads, use current user
+          setFormData(prev => ({ ...prev, lead_owner: displayName }));
         }
       }
     };

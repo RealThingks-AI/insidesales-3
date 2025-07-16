@@ -84,7 +84,13 @@ export const useTeamsMeeting = () => {
       // If updating and there's an existing meeting ID, delete the old meeting first
       if (isEditing && existingMeetingId) {
         console.log('Deleting existing Teams meeting before creating new one...');
-        await deleteTeamsLink(existingMeetingId);
+        try {
+          await deleteTeamsLink(existingMeetingId);
+          console.log('Old Teams meeting deletion completed, proceeding with new meeting creation...');
+        } catch (error) {
+          console.warn('Error deleting old Teams meeting, but proceeding with new meeting creation:', error);
+          // Don't block new meeting creation if deletion fails
+        }
       }
 
       const startDateTime = new Date(`${date}T${start_time}:00`);
@@ -109,17 +115,17 @@ export const useTeamsMeeting = () => {
         timeZone: timezone
       });
 
-      // Always create a new meeting (since we deleted the old one if it existed)
-      const { data, error } = await supabase.functions.invoke('create-teams-meeting', {
+      // Always create a new meeting using the improved edge function
+      const { data, error } = await supabase.functions.invoke('manage-teams-meeting', {
         body: {
           subject: meeting_title,
           startTime: startTimeISO,
           endTime: endTimeISO,
-          attendees: participants,
+          participants: participants, // Let the edge function handle email conversion
           location,
           timeZone: timezone,
-          isUpdate: false, // Always create new meeting for clean state
-          existingTeamsLink: null
+          isUpdate: isEditing,
+          existingMeetingId: existingMeetingId
         }
       });
 

@@ -2,6 +2,7 @@
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { CSVParser } from '@/utils/csvParser';
 
 interface ImportExportOptions {
   moduleName: string;
@@ -106,20 +107,32 @@ export const useImportExport = ({ moduleName, onRefresh, tableName = 'contacts_m
       },
       deals: {
         allowedColumns: [
-          'deal_name',
-          'amount',
-          'closing_date',
-          'stage',
-          'probability',
-          'type',
-          'next_step',
-          'description',
-          'currency',
-          'pipeline'
+          // Basic fields
+          'deal_name', 'amount', 'closing_date', 'stage', 'probability', 'description', 'currency',
+          // Discussions stage
+          'customer_need_identified', 'need_summary', 'decision_maker_present', 'customer_agreed_on_need',
+          // Qualified stage
+          'nda_signed', 'budget_confirmed', 'supplier_portal_access', 'expected_deal_timeline_start', 'expected_deal_timeline_end', 'budget_holder', 'decision_makers', 'timeline',
+          // RFQ stage
+          'rfq_value', 'rfq_document_url', 'product_service_scope', 'rfq_confirmation_note',
+          // Offered stage
+          'proposal_sent_date', 'negotiation_status', 'decision_expected_date', 'negotiation_notes',
+          // Final stages
+          'win_reason', 'loss_reason', 'drop_reason',
+          // Execution
+          'execution_started', 'begin_execution_date',
+          // General
+          'internal_notes', 'related_lead_id', 'related_meeting_id'
         ],
         required: ['deal_name'],
         enums: {
-          stage: ['Contact', 'Lead', 'Meeting', 'Qualified', 'RFQ', 'Offered', 'Won', 'Lost', 'Dropped']
+          stage: ['Discussions', 'Qualified', 'RFQ', 'Offered', 'Won', 'Lost', 'Dropped'],
+          currency: ['USD', 'EUR', 'GBP', 'CAD', 'AUD'],
+          budget_confirmed: ['Yes', 'No', 'Estimate Only'],
+          customer_agreed_on_need: ['Yes', 'No', 'Partial'],
+          supplier_portal_access: ['Invited', 'Approved', 'Not Invited'],
+          negotiation_status: ['Ongoing', 'Finalized', 'Rejected', 'Accepted', 'Dropped', 'No Response'],
+          loss_reason: ['Budget', 'Competitor', 'Timeline', 'Other']
         }
       }
     };
@@ -185,10 +198,44 @@ export const useImportExport = ({ moduleName, onRefresh, tableName = 'contacts_m
     // Handle enum validations with simplified approach
     if (key in config.enums) {
       const enumValues = config.enums[key];
+      // Try exact match first
       if (enumValues && enumValues.includes(value)) {
         return value;
-      } else if (enumValues && enumValues.length > 0) {
-        return enumValues[0]; // Default to first value
+      }
+      // Try case-insensitive match
+      const normalizedValue = value.trim();
+      const matchedValue = enumValues.find(enumVal => enumVal.toLowerCase() === normalizedValue.toLowerCase());
+      if (matchedValue) {
+        return matchedValue;
+      }
+      // For critical fields like stage, try to find a close match before failing
+      if (key === 'stage') {
+        console.warn(`Invalid stage value: ${value}, available values: ${enumValues.join(', ')}`);
+        // Try to find a partial match for common variations
+        const partialMatch = enumValues.find(enumVal => 
+          enumVal.toLowerCase().includes(value.toLowerCase()) || 
+          value.toLowerCase().includes(enumVal.toLowerCase())
+        );
+        if (partialMatch) {
+          console.log(`Found partial match for stage: "${value}" -> "${partialMatch}"`);
+          return partialMatch;
+        }
+        return null; // Don't default to first enum value for stage
+      }
+      // For other enums, still default to first value
+      if (enumValues && enumValues.length > 0) {
+        return enumValues[0];
+      }
+    }
+
+    // Handle UUID fields - be more strict about what we consider UUID fields
+    if ((key === 'related_lead_id' || key === 'related_meeting_id' || key === 'created_by' || key === 'modified_by') && tableName === 'deals') {
+      // UUID validation - check if it's a valid UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(value)) {
+        return value;
+      } else {
+        return null; // Don't set invalid UUIDs
       }
     }
 
@@ -200,6 +247,7 @@ export const useImportExport = ({ moduleName, onRefresh, tableName = 'contacts_m
       
       case 'annual_revenue':
       case 'amount':
+      case 'rfq_value':
         const revenue = parseFloat(value.replace(/[$,]/g, ''));
         return isNaN(revenue) ? null : revenue;
       
@@ -207,15 +255,41 @@ export const useImportExport = ({ moduleName, onRefresh, tableName = 'contacts_m
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return emailRegex.test(value) ? value : null;
       
+      // Date fields for deals
+      case 'closing_date':
+      case 'expected_deal_timeline_start':
+      case 'expected_deal_timeline_end':
+      case 'proposal_sent_date':
+      case 'decision_expected_date':
+      case 'begin_execution_date':
+        if (tableName === 'deals') {
+          const date = new Date(value);
+          return isNaN(date.getTime()) ? null : date.toISOString().split('T')[0]; // Return date only (YYYY-MM-DD)
+        }
+        return value.trim();
+      
+      // Time fields for meetings
       case 'start_time':
       case 'end_time':
-      case 'closing_date':
-        const date = new Date(value);
-        return isNaN(date.getTime()) ? null : date.toISOString();
+        if (tableName === 'meetings') {
+          const date = new Date(value);
+          return isNaN(date.getTime()) ? null : date.toISOString();
+        }
+        return value.trim();
       
       case 'probability':
         const prob = parseInt(value);
         return isNaN(prob) ? null : Math.max(0, Math.min(100, prob));
+      
+      // Boolean fields for deals
+      case 'customer_need_identified':
+      case 'decision_maker_present':
+      case 'nda_signed':
+      case 'execution_started':
+        if (tableName === 'deals') {
+          return ['yes', 'true', '1', 'on'].includes(value.toLowerCase());
+        }
+        return value.trim();
       
       case 'participants':
         // Handle comma-separated email list
@@ -272,40 +346,24 @@ export const useImportExport = ({ moduleName, onRefresh, tableName = 'contacts_m
       console.log(`Starting import of ${file.name} (${file.size} bytes) into ${tableName}`);
       
       const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
       
-      if (lines.length < 2) {
-        throw new Error('CSV file must have at least a header row and one data row');
+      // Use the robust CSV parser
+      const { headers, rows: dataRows } = CSVParser.parseCSV(text);
+      
+      console.log('Parsed CSV - Headers:', headers);
+      console.log('Parsed CSV - Data rows:', dataRows.length);
+      
+      // For deals, use the enhanced import via edge function
+      if (tableName === 'deals') {
+        return handleDealsImport(headers, dataRows);
       }
-
-      // Parse CSV with proper quote handling
-      const parseCSVLine = (line: string): string[] => {
-        const result: string[] = [];
-        let current = '';
-        let inQuotes = false;
-        
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          if (char === '"') {
-            if (inQuotes && line[i + 1] === '"') {
-              current += '"';
-              i++;
-            } else {
-              inQuotes = !inQuotes;
-            }
-          } else if (char === ',' && !inQuotes) {
-            result.push(current.trim());
-            current = '';
-          } else {
-            current += char;
-          }
-        }
-        result.push(current.trim());
-        return result;
-      };
-
-      const headers = parseCSVLine(lines[0]).map(h => h.replace(/"/g, ''));
-      const dataRows = lines.slice(1).map(line => parseCSVLine(line).map(cell => cell.replace(/"/g, '')));
+      
+      // Debug: Show first few rows
+      if (dataRows.length > 0) {
+        console.log('First data row:', dataRows[0]);
+        console.log('First data row length:', dataRows[0].length);
+        console.log('Headers length:', headers.length);
+      }
 
       // Map headers to database columns
       const mappedHeaders = headers.map(header => ({
@@ -352,10 +410,20 @@ export const useImportExport = ({ moduleName, onRefresh, tableName = 'contacts_m
             
             // Map data using header mappings
             mappedHeaders.forEach((headerMap, index) => {
-              if (headerMap.mapped && row[index]) {
-                const validatedValue = validateAndConvertValue(headerMap.mapped, row[index]);
-                if (validatedValue !== null) {
-                  record[headerMap.mapped] = validatedValue;
+              if (headerMap.mapped && index < row.length) {
+                const rawValue = row[index];
+                // Only process non-empty values
+                if (rawValue && rawValue.trim() !== '') {
+                  const validatedValue = validateAndConvertValue(headerMap.mapped, rawValue);
+                  if (validatedValue !== null) {
+                    record[headerMap.mapped] = validatedValue;
+                    // Log stage values specifically for debugging
+                    if (headerMap.mapped === 'stage') {
+                      console.log(`Stage mapping: "${rawValue}" -> "${validatedValue}"`);
+                    }
+                  } else if (headerMap.mapped === 'stage') {
+                    console.log(`Stage validation failed: "${rawValue}" returned null`);
+                  }
                 }
               }
             });
@@ -376,9 +444,9 @@ export const useImportExport = ({ moduleName, onRefresh, tableName = 'contacts_m
               }
             });
 
-            // Set default enum values with simplified approach
+            // Set default enum values with simplified approach (skip for critical fields like stage)
             Object.keys(config.enums).forEach(enumField => {
-              if (!record[enumField]) {
+              if (!record[enumField] && enumField !== 'stage') {
                 const enumValues = config.enums[enumField];
                 if (enumValues && enumValues.length > 0) {
                   record[enumField] = enumValues[0];
@@ -392,13 +460,17 @@ export const useImportExport = ({ moduleName, onRefresh, tableName = 'contacts_m
               record.modified_by = user?.id || null;
             }
 
-            // Check for duplicates (skip for large imports to improve performance)
-            if (dataRows.length < 1000) {
-              const isDuplicate = await checkDuplicate(record);
-              if (isDuplicate) {
-                duplicateCount++;
-                continue;
-              }
+            // Always check for duplicates in deals to prevent data corruption
+            const isDuplicate = await checkDuplicate(record);
+            if (isDuplicate) {
+              console.log(`Skipping duplicate record: ${record.deal_name || record.contact_name || 'Unknown'}`);
+              duplicateCount++;
+              continue;
+            }
+
+            // Log the final record before insertion for debugging
+            if (tableName === 'deals') {
+              console.log(`Inserting deal: "${record.deal_name}" with stage: "${record.stage}"`);
             }
 
             batchRecords.push(record);
@@ -536,7 +608,7 @@ export const useImportExport = ({ moduleName, onRefresh, tableName = 'contacts_m
     exportToCSV(filteredData, `${filename}_filtered.csv`);
   };
 
-  const exportToCSV = (data: any[], filename: string) => {
+  const exportToCSV = async (data: any[], filename: string) => {
     if (data.length === 0) {
       toast({
         variant: "destructive",
@@ -546,46 +618,98 @@ export const useImportExport = ({ moduleName, onRefresh, tableName = 'contacts_m
       return;
     }
 
+    // For deals, use the enhanced export via edge function to ensure all fields are included
+    if (tableName === 'deals') {
+      try {
+        const { data: exportData, error } = await supabase.functions.invoke('deals-import-export', {
+          body: { action: 'export' }
+        });
+
+        if (error) throw error;
+
+        const allColumns = exportData.fields || Object.keys(exportData.data[0] || {});
+        const csvContent = CSVParser.toCSV(exportData.data, allColumns);
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Export completed",
+          description: `Successfully exported ${exportData.data.length} deals with all pipeline data to ${filename}`,
+        });
+        return;
+      } catch (error: any) {
+        console.error('Deals export error:', error);
+        toast({
+          variant: "destructive",
+          title: "Export Failed",
+          description: error.message,
+        });
+        return;
+      }
+    }
+
     // Use exact column names for perfect roundtrip compatibility
     const headers = config.allowedColumns;
 
     console.log('Exporting with headers:', headers);
     console.log('Sample data:', data[0]);
 
-    // Generate CSV with proper escaping
-    const csvContent = [
-      headers.join(','),
-      ...data.map(row => 
-        headers.map(header => {
-          let value = row[header] || '';
-          
-          // Format dates properly
-          if (header.includes('time') || header.includes('date')) {
-            if (value) {
-              const date = new Date(value);
-              value = date.toISOString();
+    // Process data for export
+    const processedData = data.map(row => {
+      const processedRow: any = {};
+      
+      headers.forEach(header => {
+        let value = row[header];
+        
+        // Handle null/undefined
+        if (value === null || value === undefined) {
+          processedRow[header] = '';
+          return;
+        }
+        
+        // Format dates properly with validation
+        if ((header.includes('time') || header.includes('date')) && !header.includes('_id')) {
+          if (value) {
+            const date = new Date(value);
+            // Check if the date is valid before converting to ISO string
+            if (!isNaN(date.getTime())) {
+              // For deals table, format dates as YYYY-MM-DD for date fields
+              if (tableName === 'deals' && (header.includes('date') || header.includes('timeline'))) {
+                processedRow[header] = date.toISOString().split('T')[0];
+              } else {
+                processedRow[header] = date.toISOString();
+              }
+            } else {
+              processedRow[header] = '';
             }
+          } else {
+            processedRow[header] = '';
           }
-          
+        } else if (Array.isArray(value)) {
           // Handle arrays (participants, tags)
-          if (Array.isArray(value)) {
-            value = value.join(', ');
-          }
-          
+          processedRow[header] = value.join(', ');
+        } else if (typeof value === 'boolean') {
           // Handle boolean values
-          if (typeof value === 'boolean') {
-            value = value ? 'true' : 'false';
-          }
-          
-          // Escape values containing commas, quotes, or newlines
-          if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
-            value = `"${value.replace(/"/g, '""')}"`;
-          }
-          
-          return value;
-        }).join(',')
-      )
-    ].join('\n');
+          processedRow[header] = value ? 'true' : 'false';
+        } else {
+          // Convert to string
+          processedRow[header] = String(value);
+        }
+      });
+      
+      return processedRow;
+    });
+
+    // Use the CSVParser to generate proper CSV
+    const csvContent = CSVParser.toCSV(processedData, headers);
 
     // Create and download file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -603,6 +727,71 @@ export const useImportExport = ({ moduleName, onRefresh, tableName = 'contacts_m
       title: "Export completed",
       description: `Successfully exported ${data.length} records to ${filename}`,
     });
+  };
+
+  // Enhanced deals import using edge function
+  const handleDealsImport = async (headers: string[], dataRows: string[][]) => {
+    try {
+      // Map headers to database columns
+      const mappedHeaders = headers.map(header => ({
+        original: header,
+        mapped: mapHeader(header)
+      }));
+
+      // Build deals array from CSV data
+      const deals = dataRows.map((row, index) => {
+        const deal: any = {};
+        
+        mappedHeaders.forEach((headerMap, headerIndex) => {
+          if (headerMap.mapped && headerIndex < row.length) {
+            const rawValue = row[headerIndex];
+            if (rawValue && rawValue.trim() !== '') {
+              deal[headerMap.mapped] = rawValue.trim();
+            }
+          }
+        });
+
+        // Ensure deal_name is present
+        if (!deal.deal_name) {
+          deal.deal_name = `Deal ${index + 1}`;
+        }
+
+        return deal;
+      });
+
+      // Call edge function for import
+      const { data: result, error } = await supabase.functions.invoke('deals-import-export', {
+        body: { 
+          action: 'import', 
+          data: { 
+            deals,
+            userId: user?.id
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      const { results } = result;
+      
+      toast({
+        title: "Import Completed",
+        description: `Created: ${results.created}, Updated: ${results.updated}, Errors: ${results.errors.length}`,
+      });
+
+      if (results.errors.length > 0) {
+        console.error('Import errors:', results.errors);
+      }
+
+      onRefresh();
+    } catch (error: any) {
+      console.error('Deals import error:', error);
+      toast({
+        variant: "destructive",
+        title: "Import Failed",
+        description: error.message,
+      });
+    }
   };
 
   return {

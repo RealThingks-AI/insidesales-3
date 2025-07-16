@@ -112,8 +112,8 @@ const KanbanColumn = ({ stage, deals, onRefresh, onEditDeal, onDeleteDeal }: Kan
           ref={setNodeRef}
           className="space-y-4 min-h-[420px] px-4 pb-4"
         >
-          {deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} onRefresh={onRefresh} onEdit={onEditDeal} />
+          {deals.map((deal, index) => (
+            <DealCard key={`${deal.id}-${index}`} deal={deal} onRefresh={onRefresh} onEdit={onEditDeal} />
           ))}
           {deals.length === 0 && (
             <div className="flex items-center justify-center h-32 text-gray-400 text-sm">

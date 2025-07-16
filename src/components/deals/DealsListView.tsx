@@ -31,7 +31,6 @@ const DEFAULT_COLUMNS: DealColumn[] = [
   { key: 'need_summary', label: 'Need Summary', required: false, visible: false },
   { key: 'decision_maker_present', label: 'Decision Maker Present', required: false, visible: false },
   { key: 'customer_agreed_on_need', label: 'Customer Agreed on Need', required: false, visible: false },
-  { key: 'discussion_notes', label: 'Discussion Notes', required: false, visible: false },
   
   // Qualified stage fields
   { key: 'nda_signed', label: 'NDA Signed', required: false, visible: false },
@@ -42,12 +41,10 @@ const DEFAULT_COLUMNS: DealColumn[] = [
   { key: 'budget_holder', label: 'Budget Holder', required: false, visible: false },
   { key: 'decision_makers', label: 'Decision Makers', required: false, visible: false },
   { key: 'timeline', label: 'Timeline Notes', required: false, visible: false },
-  { key: 'supplier_portal_required', label: 'Supplier Portal Required', required: false, visible: false },
   
   // RFQ stage fields
   { key: 'rfq_value', label: 'RFQ Value', required: false, visible: false },
   { key: 'rfq_document_url', label: 'RFQ Document URL', required: false, visible: false },
-  { key: 'rfq_document_link', label: 'RFQ Document Link', required: false, visible: false },
   { key: 'product_service_scope', label: 'Product/Service Scope', required: false, visible: false },
   { key: 'rfq_confirmation_note', label: 'RFQ Confirmation Note', required: false, visible: false },
   
@@ -55,22 +52,16 @@ const DEFAULT_COLUMNS: DealColumn[] = [
   { key: 'proposal_sent_date', label: 'Proposal Sent Date', required: false, visible: false },
   { key: 'negotiation_status', label: 'Negotiation Status', required: false, visible: false },
   { key: 'decision_expected_date', label: 'Decision Expected Date', required: false, visible: false },
-  { key: 'offer_sent_date', label: 'Offer Sent Date', required: false, visible: false },
-  { key: 'revised_offer_notes', label: 'Revised Offer Notes', required: false, visible: false },
   { key: 'negotiation_notes', label: 'Negotiation Notes', required: false, visible: false },
   
   // Final stage fields
   { key: 'win_reason', label: 'Win Reason', required: false, visible: false },
   { key: 'loss_reason', label: 'Loss Reason', required: false, visible: false },
-  { key: 'lost_to', label: 'Lost To', required: false, visible: false },
   { key: 'drop_reason', label: 'Drop Reason', required: false, visible: false },
-  { key: 'drop_summary', label: 'Drop Summary', required: false, visible: false },
-  { key: 'learning_summary', label: 'Learning Summary', required: false, visible: false },
   
   // Execution fields
   { key: 'execution_started', label: 'Execution Started', required: false, visible: false },
   { key: 'begin_execution_date', label: 'Begin Execution Date', required: false, visible: false },
-  { key: 'confirmation_note', label: 'Confirmation Note', required: false, visible: false },
   
   // General fields
   { key: 'internal_notes', label: 'Internal Notes', required: false, visible: false },
@@ -89,16 +80,17 @@ const DealsListView = ({ deals, onEdit, onDelete }: DealsListViewProps) => {
   const visibleColumns = useMemo(() => {
     const baseVisibleColumns = columns.filter(col => col.visible);
     
-    // For each deal, check if at least one deal can show each column based on stage visibility
+    // Show a column if any deal has data in that field or if it's a basic field
     const filteredColumns = baseVisibleColumns.filter(col => 
       deals.some(deal => {
-        // Use stage-based visibility logic for each deal
+        // Basic fields are always visible
         const isBasicField = ['deal_name', 'stage', 'amount', 'probability', 'closing_date', 'currency', 'description', 'modified_at', 'created_at', 'internal_notes'].includes(col.key);
         
         if (isBasicField) return true;
         
-        // Check if field is visible based on deal's current stage and progression
-        return isFieldVisibleForDeal(deal, col.key);
+        // Show field if the deal has data in this field (not null/undefined/empty)
+        const fieldValue = deal[col.key as keyof Deal];
+        return fieldValue !== null && fieldValue !== undefined && fieldValue !== '';
       })
     );
     
@@ -167,7 +159,6 @@ const DealsListView = ({ deals, onEdit, onDelete }: DealsListViewProps) => {
       case 'customer_need_identified':
       case 'decision_maker_present':
       case 'nda_signed':
-      case 'supplier_portal_required':
       case 'execution_started':
         return value === true ? 'Yes' : value === false ? 'No' : '-';
       case 'customer_agreed_on_need':
@@ -177,7 +168,6 @@ const DealsListView = ({ deals, onEdit, onDelete }: DealsListViewProps) => {
       case 'loss_reason':
         return value || '-';
       case 'rfq_document_url':
-      case 'rfq_document_link':
         return value ? (
           <a 
             href={value as string} 
@@ -191,14 +181,9 @@ const DealsListView = ({ deals, onEdit, onDelete }: DealsListViewProps) => {
         ) : '-';
       case 'description':
       case 'need_summary':
-      case 'discussion_notes':
       case 'rfq_confirmation_note':
-      case 'revised_offer_notes':
       case 'negotiation_notes':
       case 'internal_notes':
-      case 'drop_summary':
-      case 'learning_summary':
-      case 'confirmation_note':
       case 'product_service_scope':
         return value ? (
           <div className="max-w-xs truncate" title={value as string}>
@@ -253,9 +238,10 @@ const DealsListView = ({ deals, onEdit, onDelete }: DealsListViewProps) => {
             {sortedDeals.map((deal) => (
               <TableRow key={deal.id}>
                  {visibleColumns.map((column) => {
-                   // Check if this specific field should be visible for this specific deal
+                   // Show field if it has data or if it's a basic field
                    const isBasicField = ['deal_name', 'stage', 'amount', 'probability', 'closing_date', 'currency', 'description', 'modified_at', 'created_at', 'internal_notes'].includes(column.key);
-                   const shouldShowField = isBasicField || isFieldVisibleForDeal(deal, column.key);
+                   const fieldValue = deal[column.key as keyof Deal];
+                   const shouldShowField = isBasicField || (fieldValue !== null && fieldValue !== undefined && fieldValue !== '');
                    
                    return (
                      <TableCell key={column.key}>

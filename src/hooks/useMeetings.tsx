@@ -60,28 +60,52 @@ export const useMeetings = () => {
       
       console.log('Raw meetings data:', meetingsData?.length, 'records');
       
-      // Only fetch profiles if we have meetings
-      let profilesMap = new Map();
+      // Fetch user display names from auth users and profiles
+      let usersMap = new Map();
       if (meetingsData && meetingsData.length > 0) {
         // Get unique creator IDs
         const creatorIds = [...new Set(meetingsData.map(meeting => meeting.created_by).filter(Boolean))];
         
         if (creatorIds.length > 0) {
-          // Fetch profile data for all creators
-          const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, full_name, "Email ID"')
-            .in('id', creatorIds);
+          // First try to get from auth.users via admin API
+          try {
+            const { data: adminData } = await supabase.functions.invoke('get-user-display-names', {
+              body: { userIds: creatorIds }
+            });
+            
+            if (adminData?.userDisplayNames) {
+              Object.entries(adminData.userDisplayNames).forEach(([userId, displayName]) => {
+                usersMap.set(userId, {
+                  display_name: displayName as string,
+                  email: '' // Email not returned by this function, will be filled from profiles if needed
+                });
+              });
+            }
+          } catch (error) {
+            console.log('Auth admin API not available, falling back to profiles table');
+          }
+          
+          // Fallback to profiles table for any missing users
+          const missingUserIds = creatorIds.filter(id => !usersMap.has(id));
+          if (missingUserIds.length > 0) {
+            const { data: profilesData, error: profilesError } = await supabase
+              .from('profiles')
+              .select('id, full_name, "Email ID"')
+              .in('id', missingUserIds);
 
-          if (profilesError) {
-            console.error('Error fetching profiles:', profilesError);
-          } else {
-            console.log('Fetched profiles data:', profilesData);
-            // Create a map for quick lookup
-            profilesMap = new Map(
-              (profilesData || []).map(profile => [profile.id, profile])
-            );
-            console.log('Profiles map:', profilesMap);
+            if (!profilesError && profilesData) {
+              profilesData.forEach(profile => {
+                const displayName = (profile.full_name && profile.full_name !== profile["Email ID"]) 
+                  ? profile.full_name 
+                  : profile["Email ID"]?.split('@')[0].split('.').map(part => 
+                      part.charAt(0).toUpperCase() + part.slice(1)
+                    ).join(' ') || 'Unknown User';
+                usersMap.set(profile.id, {
+                  display_name: displayName,
+                  email: profile["Email ID"]
+                });
+              });
+            }
           }
         }
       }
@@ -120,7 +144,7 @@ export const useMeetings = () => {
       }
 
       const typedMeetings: Meeting[] = (meetingsData || []).map(meeting => {
-        const profile = profilesMap.get(meeting.created_by);
+        const userInfo = usersMap.get(meeting.created_by);
         
         // Convert participant IDs/emails to names - handle both UUIDs and emails
         const participantNames = (meeting.participants || []).map(participant => {
@@ -155,12 +179,8 @@ export const useMeetings = () => {
           duration: (['15 min', '30 min', '1 hour', '2 hours'].includes(meeting.duration) ? meeting.duration : '1 hour') as '15 min' | '30 min' | '1 hour' | '2 hours',
           location: meeting.location as 'Online' | 'In-Person',
           description: meeting.description || '',
-          organizer_name: (profile?.full_name && profile.full_name !== profile?.["Email ID"]) 
-            ? profile.full_name 
-            : profile?.["Email ID"]?.split('@')[0].split('.').map(part => 
-                part.charAt(0).toUpperCase() + part.slice(1)
-              ).join(' ') || 'Unknown Organizer',
-          organizer_email: profile?.["Email ID"] || '',
+          organizer_name: userInfo?.display_name || 'Unknown User',
+          organizer_email: userInfo?.email || '',
         };
       });
       

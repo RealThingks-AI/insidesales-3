@@ -171,7 +171,7 @@ export const BasicDealFields = ({ formData, updateFormData, isFieldVisible = () 
         </div>
       )}
 
-      {isFieldVisible('discussion_notes') && (
+      {isFieldVisible('discussion_notes') && currentStage !== 'Qualified' && currentStage !== 'RFQ' && (
         <div className="space-y-2">
           <Label htmlFor="discussion_notes">Discussion Notes</Label>
           <Textarea

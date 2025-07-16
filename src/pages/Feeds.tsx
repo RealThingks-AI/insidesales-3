@@ -11,6 +11,7 @@ interface FeedItem {
   description: string;
   timestamp: string;
   user: string;
+  userId?: string;
 }
 
 const Feeds = () => {
@@ -21,9 +22,30 @@ const Feeds = () => {
     fetchRealActivityFeeds();
   }, []);
 
+  const fetchUserDisplayNames = async (userIds: string[]) => {
+    if (userIds.length === 0) return {};
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('get-user-display-names', {
+        body: { userIds }
+      });
+      
+      if (error) {
+        console.error('Error fetching user display names:', error);
+        return {};
+      }
+      
+      return data?.userDisplayNames || {};
+    } catch (error) {
+      console.error('Error calling get-user-display-names function:', error);
+      return {};
+    }
+  };
+
   const fetchRealActivityFeeds = async () => {
     try {
       const feeds: FeedItem[] = [];
+      const userIds = new Set<string>();
 
       // Fetch recent contacts
       const { data: contacts } = await supabase
@@ -34,13 +56,15 @@ const Feeds = () => {
 
       if (contacts) {
         contacts.forEach(contact => {
+          if (contact.created_by) userIds.add(contact.created_by);
           feeds.push({
             id: `contact-${contact.id}`,
             type: 'contact',
             title: 'New Contact Added',
             description: `${contact.contact_name} was added to the system`,
             timestamp: contact.created_time,
-            user: 'System'
+            user: 'Loading...',
+            userId: contact.created_by
           });
         });
       }
@@ -54,13 +78,15 @@ const Feeds = () => {
 
       if (leads) {
         leads.forEach(lead => {
+          if (lead.created_by) userIds.add(lead.created_by);
           feeds.push({
             id: `lead-${lead.id}`,
             type: 'lead',
             title: 'New Lead Generated',
             description: `${lead.lead_name} was added as a lead`,
             timestamp: lead.created_time,
-            user: 'System'
+            user: 'Loading...',
+            userId: lead.created_by
           });
         });
       }
@@ -74,18 +100,20 @@ const Feeds = () => {
 
       if (deals) {
         deals.forEach(deal => {
+          if (deal.created_by) userIds.add(deal.created_by);
           feeds.push({
             id: `deal-${deal.id}`,
             type: 'deal',
             title: 'Deal Updated',
             description: `${deal.deal_name} moved to ${deal.stage} stage`,
             timestamp: deal.created_at,
-            user: 'Current User'
+            user: 'Loading...',
+            userId: deal.created_by
           });
         });
       }
 
-      // Fetch recent meetings - using correct column names
+      // Fetch recent meetings
       const { data: meetings } = await supabase
         .from('meetings')
         .select('id, meeting_title, start_time, created_at, created_by')
@@ -94,13 +122,15 @@ const Feeds = () => {
 
       if (meetings) {
         meetings.forEach(meeting => {
+          if (meeting.created_by) userIds.add(meeting.created_by);
           feeds.push({
             id: `meeting-${meeting.id}`,
             type: 'meeting',
             title: 'Meeting Scheduled',
             description: `${meeting.meeting_title} scheduled for ${new Date(meeting.start_time).toLocaleDateString()}`,
             timestamp: meeting.created_at,
-            user: 'Current User'
+            user: 'Loading...',
+            userId: meeting.created_by
           });
         });
       }
@@ -108,7 +138,20 @@ const Feeds = () => {
       // Sort all feeds by timestamp
       feeds.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       
-      setFeeds(feeds.slice(0, 10)); // Show only the 10 most recent
+      // Get the top 10 most recent feeds
+      const recentFeeds = feeds.slice(0, 10);
+      
+      // Fetch user display names for all unique user IDs
+      const uniqueUserIds = Array.from(userIds);
+      const userDisplayNames = await fetchUserDisplayNames(uniqueUserIds);
+      
+      // Update feeds with actual user display names
+      const updatedFeeds = recentFeeds.map(feed => ({
+        ...feed,
+        user: feed.userId ? (userDisplayNames[feed.userId] || 'Unknown User') : 'System'
+      }));
+      
+      setFeeds(updatedFeeds);
     } catch (error: any) {
       console.error('Error fetching activity feeds:', error);
       toast({

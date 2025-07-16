@@ -57,8 +57,10 @@ export const OfferedStageFields = ({ formData, updateFormData, readOnly = false 
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="Ongoing">Ongoing</SelectItem>
-            <SelectItem value="Finalized">Finalized</SelectItem>
+            <SelectItem value="Accepted">Accepted</SelectItem>
             <SelectItem value="Rejected">Rejected</SelectItem>
+            <SelectItem value="Dropped">Dropped</SelectItem>
+            <SelectItem value="No Response">No Response</SelectItem>
           </SelectContent>
         </Select>
       </div>

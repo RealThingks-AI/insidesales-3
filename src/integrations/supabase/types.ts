@@ -125,7 +125,9 @@ export type Database = {
       deals: {
         Row: {
           amount: number | null
+          begin_execution_date: string | null
           budget_confirmed: string | null
+          budget_holder: string | null
           closing_date: string | null
           created_at: string | null
           created_by: string | null
@@ -135,31 +137,40 @@ export type Database = {
           deal_name: string
           decision_expected_date: string | null
           decision_maker_present: boolean | null
+          decision_makers: string | null
           description: string | null
           drop_reason: string | null
+          execution_started: boolean | null
           expected_deal_timeline_end: string | null
           expected_deal_timeline_start: string | null
           id: string
+          internal_notes: string | null
           loss_reason: string | null
           modified_at: string | null
           modified_by: string | null
           nda_signed: boolean | null
           need_summary: string | null
+          negotiation_notes: string | null
           negotiation_status: string | null
           probability: number | null
           product_service_scope: string | null
           proposal_sent_date: string | null
           related_lead_id: string | null
           related_meeting_id: string | null
+          rfq_confirmation_note: string | null
           rfq_document_url: string | null
           rfq_value: number | null
           stage: string
           supplier_portal_access: string | null
+          supplier_portal_required: boolean | null
+          timeline: string | null
           win_reason: string | null
         }
         Insert: {
           amount?: number | null
+          begin_execution_date?: string | null
           budget_confirmed?: string | null
+          budget_holder?: string | null
           closing_date?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -169,31 +180,40 @@ export type Database = {
           deal_name: string
           decision_expected_date?: string | null
           decision_maker_present?: boolean | null
+          decision_makers?: string | null
           description?: string | null
           drop_reason?: string | null
+          execution_started?: boolean | null
           expected_deal_timeline_end?: string | null
           expected_deal_timeline_start?: string | null
           id?: string
+          internal_notes?: string | null
           loss_reason?: string | null
           modified_at?: string | null
           modified_by?: string | null
           nda_signed?: boolean | null
           need_summary?: string | null
+          negotiation_notes?: string | null
           negotiation_status?: string | null
           probability?: number | null
           product_service_scope?: string | null
           proposal_sent_date?: string | null
           related_lead_id?: string | null
           related_meeting_id?: string | null
+          rfq_confirmation_note?: string | null
           rfq_document_url?: string | null
           rfq_value?: number | null
           stage?: string
           supplier_portal_access?: string | null
+          supplier_portal_required?: boolean | null
+          timeline?: string | null
           win_reason?: string | null
         }
         Update: {
           amount?: number | null
+          begin_execution_date?: string | null
           budget_confirmed?: string | null
+          budget_holder?: string | null
           closing_date?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -203,26 +223,33 @@ export type Database = {
           deal_name?: string
           decision_expected_date?: string | null
           decision_maker_present?: boolean | null
+          decision_makers?: string | null
           description?: string | null
           drop_reason?: string | null
+          execution_started?: boolean | null
           expected_deal_timeline_end?: string | null
           expected_deal_timeline_start?: string | null
           id?: string
+          internal_notes?: string | null
           loss_reason?: string | null
           modified_at?: string | null
           modified_by?: string | null
           nda_signed?: boolean | null
           need_summary?: string | null
+          negotiation_notes?: string | null
           negotiation_status?: string | null
           probability?: number | null
           product_service_scope?: string | null
           proposal_sent_date?: string | null
           related_lead_id?: string | null
           related_meeting_id?: string | null
+          rfq_confirmation_note?: string | null
           rfq_document_url?: string | null
           rfq_value?: number | null
           stage?: string
           supplier_portal_access?: string | null
+          supplier_portal_required?: boolean | null
+          timeline?: string | null
           win_reason?: string | null
         }
         Relationships: [

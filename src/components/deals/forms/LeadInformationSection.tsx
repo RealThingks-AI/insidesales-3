@@ -42,21 +42,36 @@ export const LeadInformationSection = ({ dealId, relatedLeadId }: LeadInformatio
         }
 
         // Fetch lead owner profile if contact_owner exists
-        let leadOwnerName = 'No Owner';
+        let leadOwnerName = '';
         if (lead.contact_owner) {
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('full_name, "Email ID"')
-            .eq('id', lead.contact_owner)
-            .single();
+          try {
+            // First try to get display name via edge function
+            const { data: userDisplayData, error: displayError } = await supabase.functions.invoke('get-user-display-names', {
+              body: { userIds: [lead.contact_owner] }
+            });
 
-          if (!profileError && profile) {
-            // Use full_name if available and different from email, otherwise format email
-            if (profile.full_name && profile.full_name !== profile["Email ID"]) {
-              leadOwnerName = profile.full_name;
-            } else if (profile["Email ID"]) {
-              leadOwnerName = profile["Email ID"].split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            if (!displayError && userDisplayData?.userDisplayNames?.[lead.contact_owner]) {
+              leadOwnerName = userDisplayData.userDisplayNames[lead.contact_owner];
+            } else {
+              // Fallback to direct profile query
+              const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('full_name, "Email ID"')
+                .eq('id', lead.contact_owner)
+                .single();
+
+              if (!profileError && profile) {
+                // Create a proper display name
+                if (profile.full_name && profile.full_name !== profile["Email ID"]) {
+                  leadOwnerName = profile.full_name;
+                } else if (profile["Email ID"]) {
+                  // Extract name from email (part before @)
+                  leadOwnerName = profile["Email ID"].split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                }
+              }
             }
+          } catch (error) {
+            console.error('Error fetching lead owner name:', error);
           }
         }
 
@@ -151,25 +166,17 @@ export const LeadInformationSection = ({ dealId, relatedLeadId }: LeadInformatio
             <Label className="text-xs text-gray-600">Lead Owner</Label>
             <div className="flex items-center gap-2">
               <Users className="h-3 w-3 text-gray-500" />
-              <Input
-                value={leadInfo.lead_owner || 'No Owner'}
+               <Input
+                 value={leadInfo.lead_owner || 'Unknown Owner'}
                 readOnly
                 className="bg-gray-50 text-sm"
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-xs text-gray-600">Email</Label>
-            <Input
-              value={leadInfo.email || 'No Email'}
-              readOnly
-              className="bg-gray-50 text-sm"
-            />
-          </div>
 
           {leadInfo.phone_no && (
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2">
               <Label className="text-xs text-gray-600">Phone</Label>
               <Input
                 value={leadInfo.phone_no}

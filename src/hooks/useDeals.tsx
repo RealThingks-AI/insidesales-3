@@ -72,12 +72,17 @@ export const DEAL_STAGES = [
 export const getStageRequirements = (stage: string): string[] => {
   const requirements: Record<string, string[]> = {
     'Discussions': [
+      'Deal name filled',
+      'Probability (%) specified',
+      'Meeting description or linked lead',
       'Customer need identified',
       'Need summary documented',
-      'Decision maker present confirmed',
       'Customer agreement on need status'
     ],
     'Qualified': [
+      'Deal name filled',
+      'Probability (%) specified',
+      'Meeting description or linked lead',
       'NDA signed status',
       'Budget confirmation',
       'Supplier portal access status',
@@ -85,11 +90,17 @@ export const getStageRequirements = (stage: string): string[] => {
       'Deal timeline end date'
     ],
     'RFQ': [
+      'Deal name filled',
+      'Probability (%) specified', 
+      'Meeting description or linked lead',
       'RFQ value specified',
       'RFQ document URL provided',
       'Product/service scope defined'
     ],
     'Offered': [
+      'Deal name filled',
+      'Probability (%) specified',
+      'Meeting description or linked lead', 
       'Proposal sent date',
       'Negotiation status',
       'Decision expected date'
@@ -114,27 +125,38 @@ export const canMoveToStage = (deal: Deal, targetStage: string): boolean => {
     return true;
   }
   
-  // Check stage completion for forward moves - matching database validation logic exactly
+  // Helper function to check if deal has linked lead data
+  const hasBasicLeadInfo = () => {
+    // Basic requirements: deal name, probability, and either description or linked lead
+    return !!(deal.deal_name && deal.deal_name.trim().length > 0 &&
+              deal.probability !== null && deal.probability !== undefined &&
+              (deal.description || deal.related_lead_id));
+  };
+  
+  // Check stage completion for forward moves
   switch (currentStage) {
     case 'Discussions':
-      return !!(deal.customer_need_identified === true && 
-               deal.need_summary && deal.need_summary.trim().length > 0 && 
-               deal.decision_maker_present === true && 
-               deal.customer_agreed_on_need && ['Yes', 'No', 'Partial'].includes(deal.customer_agreed_on_need));
+      return !!(hasBasicLeadInfo() &&
+                deal.customer_need_identified === true && 
+                deal.need_summary && deal.need_summary.trim().length > 0 && 
+                deal.customer_agreed_on_need && ['Yes', 'No', 'Partial'].includes(deal.customer_agreed_on_need));
     case 'Qualified':
-      return !!(deal.nda_signed !== null && 
-               deal.budget_confirmed && 
-               deal.supplier_portal_access && 
-               deal.expected_deal_timeline_start && 
-               deal.expected_deal_timeline_end);
+      return !!(hasBasicLeadInfo() &&
+                deal.nda_signed !== null && 
+                deal.budget_confirmed && 
+                deal.supplier_portal_access && 
+                deal.expected_deal_timeline_start && 
+                deal.expected_deal_timeline_end);
     case 'RFQ':
-      return !!(deal.rfq_value && deal.rfq_value > 0 && 
-               deal.rfq_document_url && deal.rfq_document_url.trim().length > 0 && 
-               deal.product_service_scope && deal.product_service_scope.trim().length > 0);
+      return !!(hasBasicLeadInfo() &&
+                deal.rfq_value && deal.rfq_value > 0 && 
+                deal.rfq_document_url && deal.rfq_document_url.trim().length > 0 && 
+                deal.product_service_scope && deal.product_service_scope.trim().length > 0);
     case 'Offered':
-      return !!(deal.proposal_sent_date && 
-               deal.negotiation_status && 
-               deal.decision_expected_date);
+      return !!(hasBasicLeadInfo() &&
+                deal.proposal_sent_date && 
+                deal.negotiation_status && 
+                deal.decision_expected_date);
     default:
       return true;
   }
@@ -147,29 +169,45 @@ export const getStageCompletionStatus = (deal: Deal): 'complete' | 'partial' | '
   
   let completedCount = 0;
   
+  // Helper function to check basic requirements
+  const checkBasicRequirements = () => {
+    let basicCount = 0;
+    if (deal.deal_name && deal.deal_name.trim().length > 0) basicCount++;
+    if (deal.probability !== null && deal.probability !== undefined) basicCount++;
+    if (deal.description || deal.related_lead_id) basicCount++;
+    return basicCount;
+  };
+  
   switch (deal.stage) {
     case 'Discussions':
-      if (deal.customer_need_identified === true) completedCount++;
-      if (deal.need_summary && deal.need_summary.trim().length > 0) completedCount++;
-      if (deal.decision_maker_present === true) completedCount++;
-      if (deal.customer_agreed_on_need && ['Yes', 'No', 'Partial'].includes(deal.customer_agreed_on_need)) completedCount++;
+      let discussionsCount = checkBasicRequirements();
+      if (deal.customer_need_identified === true) discussionsCount++;
+      if (deal.need_summary && deal.need_summary.trim().length > 0) discussionsCount++;
+      if (deal.customer_agreed_on_need && ['Yes', 'No', 'Partial'].includes(deal.customer_agreed_on_need)) discussionsCount++;
+      completedCount = discussionsCount;
       break;
     case 'Qualified':
-      if (deal.nda_signed !== null) completedCount++;
-      if (deal.budget_confirmed) completedCount++;
-      if (deal.supplier_portal_access) completedCount++;
-      if (deal.expected_deal_timeline_start) completedCount++;
-      if (deal.expected_deal_timeline_end) completedCount++;
+      let qualifiedCount = checkBasicRequirements();
+      if (deal.nda_signed !== null) qualifiedCount++;
+      if (deal.budget_confirmed) qualifiedCount++;
+      if (deal.supplier_portal_access) qualifiedCount++;
+      if (deal.expected_deal_timeline_start) qualifiedCount++;
+      if (deal.expected_deal_timeline_end) qualifiedCount++;
+      completedCount = qualifiedCount;
       break;
     case 'RFQ':
-      if (deal.rfq_value && deal.rfq_value > 0) completedCount++;
-      if (deal.rfq_document_url && deal.rfq_document_url.trim().length > 0) completedCount++;
-      if (deal.product_service_scope && deal.product_service_scope.trim().length > 0) completedCount++;
+      let rfqCount = checkBasicRequirements();
+      if (deal.rfq_value && deal.rfq_value > 0) rfqCount++;
+      if (deal.rfq_document_url && deal.rfq_document_url.trim().length > 0) rfqCount++;
+      if (deal.product_service_scope && deal.product_service_scope.trim().length > 0) rfqCount++;
+      completedCount = rfqCount;
       break;
     case 'Offered':
-      if (deal.proposal_sent_date) completedCount++;
-      if (deal.negotiation_status) completedCount++;
-      if (deal.decision_expected_date) completedCount++;
+      let offeredCount = checkBasicRequirements();
+      if (deal.proposal_sent_date) offeredCount++;
+      if (deal.negotiation_status) offeredCount++;
+      if (deal.decision_expected_date) offeredCount++;
+      completedCount = offeredCount;
       break;
     default:
       return 'complete';

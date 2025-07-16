@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Deal } from '@/hooks/useDeals';
+import { useDealMeetingData } from '@/hooks/useDealMeetingData';
 
 export const useEditDealForm = (deal: Deal) => {
+  const { meetingData } = useDealMeetingData(deal.id, deal.related_meeting_id || undefined, deal.related_lead_id || undefined);
+  
   const [formData, setFormData] = useState({
     deal_name: '',
     stage: '',
@@ -63,6 +66,34 @@ export const useEditDealForm = (deal: Deal) => {
 
   useEffect(() => {
     if (deal) {
+      // Pre-fill with enhanced data from meeting/lead if available
+      const getEnhancedDescription = () => {
+        let description = deal.description || '';
+        
+        // If no description but we have meeting outcome, use that
+        if (!description && meetingData.meetingOutcome?.summary) {
+          description = meetingData.meetingOutcome.summary;
+        }
+        
+        // If still no description but we have meeting description, use that
+        if (!description && meetingData.meetingData?.description) {
+          description = meetingData.meetingData.description;
+        }
+        
+        return description;
+      };
+
+      const getEnhancedNeedSummary = () => {
+        let needSummary = deal.need_summary || '';
+        
+        // If no need summary but we have meeting outcome, use that
+        if (!needSummary && meetingData.meetingOutcome?.summary) {
+          needSummary = meetingData.meetingOutcome.summary;
+        }
+        
+        return needSummary;
+      };
+
       setFormData({
         deal_name: deal.deal_name || '',
         stage: deal.stage || 'Discussions',
@@ -70,11 +101,11 @@ export const useEditDealForm = (deal: Deal) => {
         currency: deal.currency || 'USD',
         probability: deal.probability?.toString() || '',
         closing_date: deal.closing_date || '',
-        description: deal.description || '',
+        description: getEnhancedDescription(),
         
-        // Discussions stage
-        customer_need_identified: deal.customer_need_identified || false,
-        need_summary: deal.need_summary || '',
+        // Discussions stage - enhanced with meeting data
+        customer_need_identified: deal.customer_need_identified || (meetingData.meetingOutcome?.outcome_type === 'successful'),
+        need_summary: getEnhancedNeedSummary(), // Always populate with available data
         decision_maker_present: deal.decision_maker_present || false,
         customer_agreed_on_need: deal.customer_agreed_on_need || '',
         discussion_notes: deal.discussion_notes || '',
@@ -122,7 +153,7 @@ export const useEditDealForm = (deal: Deal) => {
         internal_notes: deal.internal_notes || '',
       });
     }
-  }, [deal]);
+  }, [deal, meetingData]);
 
   const updateFormData = (updates: Partial<typeof formData>) => {
     setFormData(prev => ({ ...prev, ...updates }));

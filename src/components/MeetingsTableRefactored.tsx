@@ -308,7 +308,7 @@ const MeetingsTableRefactored = ({
             <TableCell key="organizer">
               <div className="flex items-center gap-1">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span>{meeting.organizer_name || 'Unknown'}</span>
+                <span>{meeting.organizer_name || 'Unknown User'}</span>
               </div>
             </TableCell>
           );

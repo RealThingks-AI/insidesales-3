@@ -1,6 +1,7 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -99,6 +100,17 @@ export const QualifiedStageFields = ({ formData, updateFormData, readOnly = fals
           disabled={readOnly}
         />
         <Label htmlFor="supplier_portal_required">Supplier Portal Required</Label>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="need_summary">Need Summary</Label>
+        <Textarea
+          id="need_summary"
+          value={formData.need_summary}
+          onChange={readOnly ? undefined : (e) => updateFormData({ need_summary: e.target.value })}
+          placeholder="Enter need summary"
+          readOnly={readOnly}
+        />
       </div>
     </div>
   );

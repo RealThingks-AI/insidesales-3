@@ -38,30 +38,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Use getUser() to validate session with server on page load
+    const validateSession = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error || !user) {
+          // No valid session, clear state
+          setSession(null);
+          setUser(null);
+        } else {
+          // Valid user from server, get the current session
+          const { data: { session } } = await supabase.auth.getSession();
+          setSession(session);
+          setUser(user);
+        }
+      } catch (error) {
+        console.error('Error validating session:', error);
+        setSession(null);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    validateSession();
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string, rememberMe = true) => {
     try {
-      // Store remember me preference before sign in
-      localStorage.setItem('rememberMe', rememberMe.toString());
-      
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
-      if (error) {
-        // Clear remember me preference if sign in failed
-        localStorage.removeItem('rememberMe');
-      }
 
       return { error };
     } catch (error: any) {
@@ -83,12 +93,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
-    // Only remove remembered email if remember me is false
-    const rememberMe = localStorage.getItem('rememberMe') === 'true';
-    if (!rememberMe) {
-      localStorage.removeItem('rememberedEmail');
-    }
-    localStorage.removeItem('rememberMe');
     await supabase.auth.signOut();
   };
 

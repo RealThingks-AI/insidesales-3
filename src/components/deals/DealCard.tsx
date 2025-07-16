@@ -58,32 +58,42 @@ const DealCard = ({ deal, onRefresh, onEdit }: DealCardProps) => {
 
         // Fetch lead owner profile and auth user data if contact_owner exists
         if (lead.contact_owner) {
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('full_name, "Email ID"')
-            .eq('id', lead.contact_owner)
-            .single();
-
-          if (!profileError && profile) {
-            // Create display name using same logic as useUserProfile
-            let displayName = profile.full_name;
+          try {
+            let displayName = '';
             
-            // Check if full_name is actually an email (contains @)
-            if (!displayName || displayName.includes('@')) {
-              const emailToUse = displayName || profile["Email ID"];
-              if (emailToUse) {
-                // Extract name from email (e.g., peter.jakobsson -> Peter Jakobsson)
-                const emailName = emailToUse.split('@')[0];
-                displayName = emailName
-                  .split('.')
-                  .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-                  .join(' ');
+            // First try to get display name via edge function
+            const { data: userDisplayData, error: displayError } = await supabase.functions.invoke('get-user-display-names', {
+              body: { userIds: [lead.contact_owner] }
+            });
+
+            if (!displayError && userDisplayData?.userDisplayNames?.[lead.contact_owner]) {
+              displayName = userDisplayData.userDisplayNames[lead.contact_owner];
+            } else {
+              // Fallback to direct profile query
+              const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('full_name, "Email ID"')
+                .eq('id', lead.contact_owner)
+                .single();
+
+              if (!profileError && profile) {
+                // Create a proper display name
+                if (profile.full_name && profile.full_name !== profile["Email ID"]) {
+                  displayName = profile.full_name;
+                } else if (profile["Email ID"]) {
+                  // Extract name from email (part before @)
+                  displayName = profile["Email ID"].split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                }
               }
             }
             
             setLinkedLeadOwner({ 
-              ...profile, 
-              display_name: displayName || 'User' 
+              display_name: displayName || 'Unknown Owner'
+            });
+          } catch (error) {
+            console.error('Error fetching lead owner:', error);
+            setLinkedLeadOwner({ 
+              display_name: 'Unknown Owner'
             });
           }
         }
@@ -149,7 +159,7 @@ const DealCard = ({ deal, onRefresh, onEdit }: DealCardProps) => {
       <CardContent className="p-4">
         {/* Deal Title */}
         <div className="mb-3">
-          <h3 className="text-sm font-semibold text-gray-900 leading-tight">
+          <h3 className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2 break-words">
             {deal.deal_name}
           </h3>
         </div>

@@ -78,12 +78,45 @@ export const useMeetingSubmission = () => {
       let meetingId = meeting?.meeting_id;
       
       if (formData.location === 'Online') {
+        // Convert participant UUIDs to emails for Teams meeting
+        let participantEmails: string[] = [];
+        
+        if (formData.participants.length > 0) {
+          try {
+            // Check if participants are already emails or UUIDs
+            const isUUIDs = formData.participants.every(p => 
+              /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p)
+            );
+            
+            if (isUUIDs) {
+              // Fetch emails from leads table using UUIDs
+              const { data: leadsData, error: leadsError } = await supabase
+                .from('leads')
+                .select('id, email')
+                .in('id', formData.participants);
+              
+              if (leadsError) {
+                console.error('Error fetching lead emails for Teams meeting:', leadsError);
+              } else {
+                participantEmails = (leadsData || [])
+                  .map(lead => lead.email)
+                  .filter(Boolean); // Remove any null/empty emails
+              }
+            } else {
+              // Participants are already emails
+              participantEmails = formData.participants.filter(Boolean);
+            }
+          } catch (error) {
+            console.error('Error converting participants to emails:', error);
+          }
+        }
+        
         const teamsResult = await createOrUpdateTeamsLink({
           meeting_title: formData.meeting_title,
           date: formData.date,
           start_time: formData.start_time,
           duration: formData.duration,
-          participants: formData.participants,
+          participants: participantEmails, // Use emails for Teams meeting
           location: formData.location,
           timezone: formData.timezone,
           isEditing,
@@ -105,7 +138,7 @@ export const useMeetingSubmission = () => {
           duration: formData.duration,
           location: formData.location,
           timezone: formData.timezone,
-          participants: formData.participants,
+          participants: formData.participants, // Keep UUIDs for database storage
           teams_link: teamsLink,
           meeting_id: meetingId,
           description: formData.description,
@@ -129,7 +162,7 @@ export const useMeetingSubmission = () => {
           duration: formData.duration,
           location: formData.location,
           timezone: formData.timezone,
-          participants: formData.participants,
+          participants: formData.participants, // Keep UUIDs for database storage
           teams_link: teamsLink,
           meeting_id: meetingId,
           description: formData.description,
