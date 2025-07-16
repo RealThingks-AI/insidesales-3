@@ -3,14 +3,11 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { useDashboardPreferences } from '@/hooks/useDashboardPreferences';
 import { DashboardCustomizationModal } from '@/components/dashboard/DashboardCustomizationModal';
 import DashboardStats from '@/components/dashboard/DashboardStats';
-import { PipelineOverviewCard } from '@/components/dashboard/PipelineOverviewCard';
-import { LeadsFunnelCard } from '@/components/dashboard/LeadsFunnelCard';
+import { DealsPipelinePieChart } from '@/components/dashboard/DealsPipelinePieChart';
 import ContactsChart from '@/components/dashboard/ContactsChart';
 import LeadsChart from '@/components/dashboard/LeadsChart';
 import MeetingsChart from '@/components/dashboard/MeetingsChart';
 import { QuickActions } from '@/components/dashboard/QuickActions';
-import { RecentActivityCard } from '@/components/dashboard/RecentActivityCard';
-import { RevenueForecastCard } from '@/components/dashboard/RevenueForecastCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 
@@ -75,29 +72,11 @@ const Dashboard = () => {
 
     switch (widgetId) {
       case 'pipeline':
-        return <PipelineOverviewCard key={widgetId} />;
+        return <DealsPipelinePieChart key={widgetId} />;
       case 'meetings':
         return (
           <div key={widgetId} className={preferences.layout_view === 'analytics' ? 'lg:col-span-2' : ''}>
             <MeetingsChart meetings={meetings} />
-          </div>
-        );
-      case 'leads':
-        return <LeadsFunnelCard key={widgetId} />;
-      case 'activity':
-        return (
-          <RecentActivityCard 
-            key={widgetId}
-            contacts={contacts} 
-            leads={leads} 
-            deals={deals} 
-            meetings={meetings} 
-          />
-        );
-      case 'revenue':
-        return (
-          <div key={widgetId} className={preferences.layout_view === 'analytics' ? 'lg:col-span-2' : ''}>
-            <RevenueForecastCard deals={deals} />
           </div>
         );
       default:

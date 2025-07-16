@@ -16,11 +16,8 @@ import { Separator } from '@/components/ui/separator';
 import { useDashboardPreferences, DashboardPreferences } from '@/hooks/useDashboardPreferences';
 
 const WIDGET_OPTIONS = [
-  { id: 'pipeline', label: 'Pipeline Overview', description: 'Total deals by stage' },
+  { id: 'pipeline', label: 'Pipeline Overview', description: 'Deals pipeline by stage' },
   { id: 'meetings', label: 'Meetings Summary', description: 'Upcoming and past meetings' },
-  { id: 'leads', label: 'Leads Funnel', description: 'Lead status distribution' },
-  { id: 'activity', label: 'Recent Activity', description: 'Recent user actions' },
-  { id: 'revenue', label: 'Revenue Forecast', description: 'Expected deal value by month' },
 ];
 
 const LAYOUT_OPTIONS = [

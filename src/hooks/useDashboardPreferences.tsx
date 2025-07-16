@@ -11,8 +11,8 @@ export interface DashboardPreferences {
 
 const DEFAULT_PREFERENCES: DashboardPreferences = {
   layout_view: 'grid',
-  visible_widgets: ['pipeline', 'meetings', 'leads', 'activity', 'revenue'],
-  card_order: ['pipeline', 'meetings', 'leads', 'activity', 'revenue']
+  visible_widgets: ['pipeline', 'meetings'],
+  card_order: ['pipeline', 'meetings']
 };
 
 export const useDashboardPreferences = () => {
