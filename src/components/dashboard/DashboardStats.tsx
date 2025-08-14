@@ -1,74 +1,52 @@
 
-import { Card, CardContent } from '@/components/ui/card';
-import { Users, UserCheck, Calendar, TrendingUp } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BarChart3, Users, Euro } from "lucide-react";
+import { Deal } from "@/types/deal";
 
 interface DashboardStatsProps {
-  contactsCount: number;
-  leadsCount: number;
-  dealsCount: number;
-  meetingsCount: number;
+  deals: Deal[];
 }
 
-const DashboardStats = ({ contactsCount, leadsCount, dealsCount, meetingsCount }: DashboardStatsProps) => {
+export const DashboardStats = ({ deals }: DashboardStatsProps) => {
+  const totalDeals = deals.length;
+  const totalValue = deals.reduce((sum, deal) => sum + (deal.total_contract_value || 0), 0);
+  const wonDeals = deals.filter(deal => deal.stage === 'Won').length;
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Contacts</p>
-              <p className="text-3xl font-bold text-gray-900">{contactsCount}</p>
+    <div className="w-full px-6 py-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <Card className="animate-fade-in hover-scale">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Deals</CardTitle>
+            <BarChart3 className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalDeals}</div>
+          </CardContent>
+        </Card>
+        
+        <Card className="animate-fade-in hover-scale">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+            <Euro className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              €{totalValue.toLocaleString()}
             </div>
-            <div className="p-3 bg-blue-100 rounded-full">
-              <Users className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Leads</p>
-              <p className="text-3xl font-bold text-gray-900">{leadsCount}</p>
-            </div>
-            <div className="p-3 bg-green-100 rounded-full">
-              <UserCheck className="h-6 w-6 text-green-600" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Deals</p>
-              <p className="text-3xl font-bold text-gray-900">{dealsCount}</p>
-            </div>
-            <div className="p-3 bg-orange-100 rounded-full">
-              <TrendingUp className="h-6 w-6 text-orange-600" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Total Meetings</p>
-              <p className="text-3xl font-bold text-gray-900">{meetingsCount}</p>
-            </div>
-            <div className="p-3 bg-purple-100 rounded-full">
-              <Calendar className="h-6 w-6 text-purple-600" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        
+        <Card className="animate-fade-in hover-scale">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Won Deals</CardTitle>
+            <Users className="w-4 h-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{wonDeals}</div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
-
-export default DashboardStats;

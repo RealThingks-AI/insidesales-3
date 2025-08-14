@@ -1,25 +1,56 @@
 
-import { useState, useEffect, createContext, useContext } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useEffect, createContext, useContext } from "react";
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<{ error: any }>;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
   loading: boolean;
+  signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({} as AuthContextType);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
+};
+
+// Enhanced cleanup for Safari compatibility
+const cleanupAuthState = () => {
+  try {
+    // Safari-safe localStorage cleanup
+    if (typeof Storage !== 'undefined' && typeof localStorage !== 'undefined') {
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+          try {
+            localStorage.removeItem(key);
+          } catch (e) {
+            console.warn('Failed to remove localStorage key:', key, e);
+          }
+        }
+      });
+    }
+    
+    // Safari-safe sessionStorage cleanup
+    if (typeof Storage !== 'undefined' && typeof sessionStorage !== 'undefined') {
+      Object.keys(sessionStorage).forEach((key) => {
+        if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+          try {
+            sessionStorage.removeItem(key);
+          } catch (e) {
+            console.warn('Failed to remove sessionStorage key:', key, e);
+          }
+        }
+      });
+    }
+  } catch (error) {
+    console.warn('Error during auth state cleanup:', error);
+  }
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -28,82 +59,116 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
+    let mounted = true;
+    let sessionFetched = false;
+
+    // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
-        setSession(session);
-        setUser(session?.user ?? null);
+        if (!mounted) return;
+        
+        console.log('Auth state change:', event, session?.user?.email);
+        
+        // Safari-compatible session handling
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+        } else {
+          setSession(null);
+          setUser(null);
+        }
+        
+        if (event === 'SIGNED_OUT') {
+          cleanupAuthState();
+          // Use replace instead of href for Safari compatibility
+          if (window.location.pathname !== '/auth') {
+            window.location.replace('/auth');
+          }
+        }
+        
+        if (event === 'SIGNED_IN' && session) {
+          // Ensure we're on the right page after successful login
+          if (window.location.pathname === '/auth') {
+            window.location.replace('/');
+          }
+        }
+        
         setLoading(false);
+        sessionFetched = true;
       }
     );
 
-    // Use getUser() to validate session with server on page load
-    const validateSession = async () => {
+    // Only get initial session if not already handled by auth state change
+    const getInitialSession = async () => {
+      if (!mounted || sessionFetched) return;
+      
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error || !user) {
-          // No valid session, clear state
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          cleanupAuthState();
           setSession(null);
           setUser(null);
-        } else {
-          // Valid user from server, get the current session
-          const { data: { session } } = await supabase.auth.getSession();
+        } else if (session && !sessionFetched) {
           setSession(session);
-          setUser(user);
+          setUser(session.user);
+        } else if (!session) {
+          setSession(null);
+          setUser(null);
         }
       } catch (error) {
-        console.error('Error validating session:', error);
-        setSession(null);
-        setUser(null);
+        if (!mounted) return;
+        console.error('Session retrieval failed:', error);
       } finally {
-        setLoading(false);
+        if (mounted && !sessionFetched) {
+          setLoading(false);
+        }
       }
     };
 
-    validateSession();
+    // Small delay to allow auth state change to handle session first
+    const timeoutId = setTimeout(getInitialSession, 100);
 
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const signIn = async (email: string, password: string, rememberMe = true) => {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      return { error };
-    } catch (error: any) {
-      return { error };
-    }
-  };
-
-  const signUp = async (email: string, password: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl
-      }
-    });
-    return { error };
-  };
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
+  }, []); // Empty dependency array to prevent re-running
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      // Clean up auth state first
+      cleanupAuthState();
+      
+      // Safari-compatible sign out
+      const { error } = await supabase.auth.signOut({ scope: 'global' });
+      if (error) {
+        console.warn('Sign out error:', error);
+      }
+      
+      // Force redirect using replace for Safari
+      window.location.replace('/auth');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Force redirect even if sign out fails
+      window.location.replace('/auth');
+    }
   };
 
   const value = {
     user,
     session,
-    signIn,
-    signUp,
-    signOut,
     loading,
+    signOut,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };

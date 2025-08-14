@@ -1,142 +1,285 @@
 
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from '@/hooks/use-toast';
-import { User, Lock, Eye, EyeOff } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Deal, DealStage } from "@/types/deal";
+import { DealForm } from "@/components/DealForm";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { DashboardStats } from "@/components/dashboard/DashboardStats";
+import { DashboardContent } from "@/components/dashboard/DashboardContent";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const { user, signIn, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  const [deals, setDeals] = useState<Deal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [initialStage, setInitialStage] = useState<DealStage>('Lead');
+  const [activeView, setActiveView] = useState<'kanban' | 'list'>('kanban');
 
   useEffect(() => {
-    if (!authLoading && user) {
-      navigate('/dashboard');
+    if (!authLoading && !user) {
+      navigate("/auth");
     }
-
   }, [user, authLoading, navigate]);
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    const { error } = await signIn(email, password, false);
-    
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Error signing in",
-        description: error.message,
-      });
-    } else {
-      toast({
-        title: "Welcome back!",
-        description: "You have successfully signed in.",
-      });
-      navigate('/dashboard');
+  useEffect(() => {
+    if (user) {
+      fetchDeals();
     }
-    
-    setLoading(false);
+  }, [user]);
+
+  const fetchDeals = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('deals')
+        .select('*')
+        .order('modified_at', { ascending: false });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch deals",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setDeals((data || []) as unknown as Deal[]);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const handleUpdateDeal = async (dealId: string, updates: Partial<Deal>) => {
+    try {
+      const { error } = await supabase
+        .from('deals')
+        .update({ ...updates, modified_at: new Date().toISOString() })
+        .eq('id', dealId);
 
-  if (authLoading) {
+      if (error) throw error;
+
+      setDeals(prev => prev.map(deal => 
+        deal.id === dealId ? { ...deal, ...updates } : deal
+      ));
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update deal",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSaveDeal = async (dealData: Partial<Deal>) => {
+    try {
+      if (isCreating) {
+        const { data, error } = await supabase
+          .from('deals')
+          .insert([{ 
+            ...dealData, 
+            deal_name: dealData.project_name || 'Untitled Deal',
+            created_by: user?.id,
+            modified_by: user?.id 
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setDeals(prev => [data as unknown as Deal, ...prev]);
+      } else if (selectedDeal) {
+        const updateData = {
+          ...dealData,
+          deal_name: dealData.project_name || selectedDeal.project_name || 'Untitled Deal',
+          modified_at: new Date().toISOString(),
+          modified_by: user?.id
+        };
+        
+        console.log("Updating deal with data:", updateData);
+        
+        await handleUpdateDeal(selectedDeal.id, updateData);
+        
+        await fetchDeals();
+      }
+    } catch (error) {
+      console.error("Error in handleSaveDeal:", error);
+      throw error;
+    }
+  };
+
+  const handleDeleteDeals = async (dealIds: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('deals')
+        .delete()
+        .in('id', dealIds);
+
+      if (error) throw error;
+
+      setDeals(prev => prev.filter(deal => !dealIds.includes(deal.id)));
+      
+      toast({
+        title: "Success",
+        description: `Deleted ${dealIds.length} deal(s)`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete deals",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleImportDeals = async (importedDeals: (Partial<Deal> & { shouldUpdate?: boolean })[]) => {
+    try {
+      let createdCount = 0;
+      let updatedCount = 0;
+
+      for (const importDeal of importedDeals) {
+        const { shouldUpdate, ...dealData } = importDeal;
+        
+        const existingDeal = deals.find(d => 
+          (dealData.id && d.id === dealData.id) || 
+          (dealData.project_name && d.project_name === dealData.project_name)
+        );
+
+        if (existingDeal) {
+          const { data, error } = await supabase
+            .from('deals')
+            .update({
+              ...dealData,
+              modified_by: user?.id,
+              deal_name: dealData.project_name || existingDeal.deal_name
+            })
+            .eq('id', existingDeal.id)
+            .select()
+            .single();
+
+          if (error) throw error;
+          updatedCount++;
+        } else {
+          const newDealData = {
+            ...dealData,
+            stage: dealData.stage || 'Lead' as const,
+            created_by: user?.id,
+            modified_by: user?.id,
+            deal_name: dealData.project_name || `Imported Deal ${Date.now()}`
+          };
+
+          const { data, error } = await supabase
+            .from('deals')
+            .insert(newDealData)
+            .select()
+            .single();
+
+          if (error) throw error;
+          createdCount++;
+        }
+      }
+
+      await fetchDeals();
+      
+      toast({
+        title: "Import successful",
+        description: `Created ${createdCount} new deals, updated ${updatedCount} existing deals`,
+      });
+    } catch (error) {
+      console.error('Import error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to import deals. Please check the CSV format.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateDeal = (stage: DealStage) => {
+    setInitialStage(stage);
+    setIsCreating(true);
+    setSelectedDeal(null);
+    setIsFormOpen(true);
+  };
+
+  const handleDealClick = (deal: Deal) => {
+    setSelectedDeal(deal);
+    setIsCreating(false);
+    setIsFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setSelectedDeal(null);
+    setIsCreating(false);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
+  if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
       </div>
     );
   }
 
+  if (!user) {
+    return null;
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-          <p className="text-gray-600">Sign in to your account to continue</p>
-        </div>
-        
-        <Card className="shadow-xl border-0">
-          <CardHeader className="space-y-1 pb-6">
-            <CardTitle className="text-xl font-semibold text-center text-gray-800">
-              Sign In
-            </CardTitle>
-            <CardDescription className="text-center text-gray-600">
-              Enter your credentials to access your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSignIn} className="space-y-6">
-              <div className="space-y-4">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                    <User className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Email address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="pl-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
-                  />
-                </div>
-                
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="pl-10 pr-10 h-12 border-gray-200 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center z-10"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                    ) : (
-                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                    )}
-                  </button>
-                </div>
-              </div>
-              
-              
-              <Button 
-                type="submit" 
-                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium shadow-sm transition-all duration-200 hover:shadow-md" 
-                disabled={loading}
-              >
-                {loading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Signing in...</span>
-                  </div>
-                ) : (
-                  'Sign In'
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="min-h-screen bg-background">
+      <DashboardHeader
+        userEmail={user.email || ''}
+        activeView={activeView}
+        onViewChange={setActiveView}
+        onCreateDeal={() => handleCreateDeal('Lead')}
+        onSignOut={handleSignOut}
+      />
+
+      <DashboardStats deals={deals} />
+
+      <DashboardContent
+        activeView={activeView}
+        deals={deals}
+        onUpdateDeal={handleUpdateDeal}
+        onDealClick={handleDealClick}
+        onCreateDeal={handleCreateDeal}
+        onDeleteDeals={handleDeleteDeals}
+        onImportDeals={handleImportDeals}
+        onRefresh={fetchDeals}
+      />
+
+      <DealForm
+        deal={selectedDeal}
+        isOpen={isFormOpen}
+        onClose={handleCloseForm}
+        onSave={handleSaveDeal}
+        onRefresh={fetchDeals}
+        isCreating={isCreating}
+        initialStage={initialStage}
+      />
     </div>
   );
 };

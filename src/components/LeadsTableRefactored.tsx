@@ -1,145 +1,234 @@
-
-import { TrendingUp, Calendar } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import GenericTable from '@/components/GenericTable';
-import { LeadColumn } from '@/components/LeadColumnCustomizer';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { Search, Edit, Trash2, Phone, Mail, Calendar, MapPin, Building, User } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionsBar } from "@/components/BulkActionsBar";
+import { LeadColumn } from "@/types/columns";
 
 interface Lead {
   id: string;
-  lead_name: string;
-  company_name: string;
-  position: string;
+  name: string;
   email: string;
-  phone_no: string;
-  mobile_no: string;
-  linkedin: string;
-  website: string;
-  contact_source: string;
-  lead_status: string;
-  industry: string;
+  phone: string;
+  company: string;
+  title: string;
   city: string;
   country: string;
-  description: string;
-  created_time: string;
-  contact_owner: string;
-  lead_owner_name?: string;
+  leadScore: number;
+  status: 'open' | 'qualified' | 'closed';
 }
 
-interface LeadsTableRefactoredProps {
-  leads: Lead[];
-  visibleColumns: LeadColumn[];
-  onEditLead: (lead: Lead) => void;
-  onDeleteLead: (leadId: string) => void;
-  onAddLead: () => void;
-  selectedItems: string[];
-  onToggleSelect: (leadId: string) => void;
-  isDeleting?: boolean;
-  onSort?: (columnKey: string) => void;
-  sortConfig?: { key: string; direction: 'asc' | 'desc' | null };
-  columnsCustomizer?: React.ReactNode;
-  onCreateMeeting?: (lead: Lead) => void;
+const sampleLeads: Lead[] = [
+  {
+    id: "1",
+    name: "Richard Hendricks",
+    email: "richard@piedpiper.com",
+    phone: "123-456-7890",
+    company: "Pied Piper",
+    title: "CEO",
+    city: "Palo Alto",
+    country: "USA",
+    leadScore: 95,
+    status: "qualified",
+  },
+  {
+    id: "2",
+    name: "Erlich Bachman",
+    email: "erlich@aviato.com",
+    phone: "987-654-3210",
+    company: "Aviato",
+    title: "Founder",
+    city: "Palo Alto",
+    country: "USA",
+    leadScore: 60,
+    status: "open",
+  },
+  {
+    id: "3",
+    name: "Monica Hall",
+    email: "monica@raviga.com",
+    phone: "555-123-4567",
+    company: "Raviga Capital",
+    title: "Partner",
+    city: "Menlo Park",
+    country: "USA",
+    leadScore: 80,
+    status: "qualified",
+  },
+  {
+    id: "4",
+    name: "Jared Dunn",
+    email: "jared@piedpiper.com",
+    phone: "111-222-3333",
+    company: "Pied Piper",
+    title: "Head of Business Development",
+    city: "Palo Alto",
+    country: "USA",
+    leadScore: 75,
+    status: "open",
+  },
+  {
+    id: "5",
+    name: "Dinesh Chugtai",
+    email: "dinesh@piedpiper.com",
+    phone: "444-555-6666",
+    company: "Pied Piper",
+    title: "Senior Programmer",
+    city: "Mountain View",
+    country: "USA",
+    leadScore: 85,
+    status: "qualified",
+  },
+];
+
+interface LeadsTableProps {
+  columns: LeadColumn[];
+  leads?: Lead[];
 }
 
-const LeadsTableRefactored = ({
-  leads,
-  visibleColumns,
-  onEditLead,
-  onDeleteLead,
-  onAddLead,
-  selectedItems,
-  onToggleSelect,
-  isDeleting = false,
-  onSort,
-  sortConfig,
-  columnsCustomizer,
-  onCreateMeeting
-}: LeadsTableRefactoredProps) => {
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'new':
-        return 'bg-blue-100 text-blue-800';
-      case 'qualified':
-        return 'bg-green-100 text-green-800';
-      case 'contacted':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'lost':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+const LeadsTableRefactored = ({ columns, leads = sampleLeads }: LeadsTableProps) => {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
+
+  // Filter leads based on search query
+  const filteredLeads = leads.filter(lead =>
+    Object.values(lead).some(value =>
+      typeof value === 'string' && value.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  );
+
+  // Handle checkbox change for a single lead
+  const handleCheckboxChange = (leadId: string) => {
+    setSelectedLeads(prev => {
+      if (prev.includes(leadId)) {
+        return prev.filter(id => id !== leadId);
+      } else {
+        return [...prev, leadId];
+      }
+    });
+  };
+
+  // Handle select all checkbox change
+  const handleSelectAllChange = () => {
+    setSelectAll(prev => !prev);
+    if (!selectAll) {
+      setSelectedLeads(filteredLeads.map(lead => lead.id));
+    } else {
+      setSelectedLeads([]);
     }
   };
 
-  const renderCellValue = (lead: Lead, columnKey: string) => {
-    const value = lead[columnKey as keyof Lead];
-    
-    if (columnKey === 'lead_name') {
-      return (
-        <button
-          onClick={() => onEditLead(lead)}
-          className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
-        >
-          {value || '-'}
-        </button>
-      );
-    }
-    
-    if (columnKey === 'lead_status') {
-      return (
-        <Badge className={getStatusColor(value as string)}>
-          {value || 'New'}
-        </Badge>
-      );
-    }
-    
-    if (columnKey === 'lead_owner_name') {
-      return value || 'Unknown User';
-    }
-    
-    return value || '-';
+  const handleDeleteSelected = () => {
+    console.log('Deleting selected leads:', selectedLeads);
+    setSelectedLeads([]);
   };
 
-  const renderRowActions = (lead: Lead) => {
-    return (
-      <div className="flex space-x-2">
-        {onCreateMeeting && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onCreateMeeting(lead)}
-            className="text-green-600 hover:text-green-800"
-            disabled={isDeleting}
-          >
-            <Calendar className="h-4 w-4" />
-            Meeting
-          </Button>
-        )}
-      </div>
-    );
+  const handleExportSelected = () => {
+    console.log('Exporting selected leads:', selectedLeads);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedLeads([]);
+    setSelectAll(false);
   };
 
   return (
-    <div className="space-y-4">
-      <div className="overflow-auto">
-        <GenericTable
-          data={leads}
-          columns={visibleColumns}
-          onEdit={onEditLead}
-          onDelete={onDeleteLead}
-          onAdd={onAddLead}
-          selectedItems={selectedItems}
-          onToggleSelect={onToggleSelect}
-          emptyIcon={<TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />}
-          emptyTitle="No leads found"
-          emptyDescription="Get started by adding your first lead."
-          renderCellValue={renderCellValue}
-          renderRowActions={renderRowActions}
-          isDeleting={isDeleting}
-          onSort={onSort}
-          sortConfig={sortConfig}
-        />
-      </div>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Leads</CardTitle>
+      </CardHeader>
+      <CardContent>
+        {selectedLeads.length > 0 && (
+          <BulkActionsBar 
+            selectedCount={selectedLeads.length} 
+            onDelete={handleDeleteSelected}
+            onExport={handleExportSelected}
+            onClearSelection={handleClearSelection}
+          />
+        )}
+        <div className="grid gap-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              placeholder="Search leads..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50px]">
+                    <Checkbox
+                      checked={selectAll}
+                      onCheckedChange={handleSelectAllChange}
+                    />
+                  </TableHead>
+                  {columns.filter(column => column.visible).map(column => (
+                    <TableHead key={column.key}>{column.label}</TableHead>
+                  ))}
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredLeads.map(lead => (
+                  <TableRow key={lead.id}>
+                    <TableCell className="font-medium">
+                      <Checkbox
+                        checked={selectedLeads.includes(lead.id)}
+                        onCheckedChange={() => handleCheckboxChange(lead.id)}
+                      />
+                    </TableCell>
+                    {columns.filter(column => column.visible).map(column => (
+                      <TableCell key={`${lead.id}-${column.key}`}>
+                        {column.key === 'status' ? (
+                          <Badge variant={lead.status === 'open' ? 'secondary' : lead.status === 'qualified' ? 'default' : 'outline'}>
+                            {lead.status}
+                          </Badge>
+                        ) : (
+                          lead[column.key as keyof Lead]?.toString() || ''
+                        )}
+                      </TableCell>
+                    ))}
+                    <TableCell className="text-right font-medium">
+                      <Button variant="ghost" size="sm">
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                      </Button>
+                      <Button variant="ghost" size="sm">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredLeads.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={columns.filter(column => column.visible).length + 2} className="text-center">
+                      No leads found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

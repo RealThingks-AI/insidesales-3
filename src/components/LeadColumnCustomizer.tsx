@@ -1,103 +1,102 @@
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Settings } from 'lucide-react';
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
-export interface LeadColumn {
-  key: string;
+export interface LeadColumnConfig {
+  field: string;
   label: string;
-  required: boolean;
   visible: boolean;
+  order: number;
 }
 
 interface LeadColumnCustomizerProps {
-  columns: LeadColumn[];
-  onColumnsChange: (columns: LeadColumn[]) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  columns: LeadColumnConfig[];
+  onColumnsChange: (columns: LeadColumnConfig[]) => void;
 }
 
-const LeadColumnCustomizer = ({ columns, onColumnsChange }: LeadColumnCustomizerProps) => {
-  const [open, setOpen] = useState(false);
-  const [localColumns, setLocalColumns] = useState(columns);
+export const LeadColumnCustomizer = ({ 
+  open, 
+  onOpenChange, 
+  columns, 
+  onColumnsChange 
+}: LeadColumnCustomizerProps) => {
+  const [localColumns, setLocalColumns] = useState<LeadColumnConfig[]>(columns);
 
-  const handleColumnToggle = (columnKey: string, checked: boolean) => {
+  const handleVisibilityChange = (field: string, visible: boolean) => {
     const updatedColumns = localColumns.map(col => 
-      col.key === columnKey ? { ...col, visible: checked } : col
+      col.field === field ? { ...col, visible } : col
     );
     setLocalColumns(updatedColumns);
   };
 
   const handleSave = () => {
     onColumnsChange(localColumns);
-    setOpen(false);
+    onOpenChange(false);
   };
 
   const handleReset = () => {
-    const resetColumns = localColumns.map(col => ({
-      ...col,
-      visible: col.required
-    }));
-    setLocalColumns(resetColumns);
-  };
-
-  const handleShowAll = () => {
-    const showAllColumns = localColumns.map(col => ({
-      ...col,
-      visible: true
-    }));
-    setLocalColumns(showAllColumns);
+    const defaultColumns: LeadColumnConfig[] = [
+      { field: 'lead_name', label: 'Lead Name', visible: true, order: 0 },
+      { field: 'company_name', label: 'Company Name', visible: true, order: 1 },
+      { field: 'position', label: 'Position', visible: true, order: 2 },
+      { field: 'email', label: 'Email', visible: true, order: 3 },
+      { field: 'phone_no', label: 'Phone', visible: true, order: 4 },
+      { field: 'country', label: 'Region', visible: true, order: 5 },
+      { field: 'contact_owner', label: 'Lead Owner', visible: true, order: 6 },
+      { field: 'lead_status', label: 'Lead Status', visible: true, order: 7 },
+      { field: 'industry', label: 'Industry', visible: false, order: 8 },
+      { field: 'contact_source', label: 'Source', visible: false, order: 9 },
+    ];
+    setLocalColumns(defaultColumns);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <Settings className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Customize Table Columns</DialogTitle>
+          <DialogTitle className="text-lg font-bold">Customize Columns</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 max-h-96 overflow-y-auto">
-          {localColumns.map((column) => (
-            <div key={column.key} className="flex items-center space-x-2">
-              <Checkbox
-                id={column.key}
-                checked={column.visible}
-                disabled={column.required}
-                onCheckedChange={(checked) => 
-                  handleColumnToggle(column.key, checked as boolean)
-                }
-              />
-              <label
-                htmlFor={column.key}
-                className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${
-                  column.required ? 'text-gray-500' : ''
-                }`}
-              >
-                {column.label}
-                {column.required && ' (Required)'}
-              </label>
-            </div>
-          ))}
-        </div>
-        <div className="flex justify-between pt-4">
-          <div className="flex space-x-2">
-            <Button variant="outline" size="sm" onClick={handleReset}>
-              Required Only
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleShowAll}>
-              Show All
-            </Button>
+        
+        <div className="space-y-4">
+          <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg">
+            <strong>Tip:</strong> Check/uncheck to show/hide columns in the lead table.
           </div>
-          <div className="flex space-x-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancel
+          
+          <div className="space-y-2 max-h-[400px] overflow-y-auto p-1">
+            {localColumns.map((column) => (
+              <div
+                key={column.field}
+                className="flex items-center space-x-3 p-3 border rounded-lg bg-card hover:bg-muted/30"
+              >
+                <Checkbox
+                  id={column.field}
+                  checked={column.visible}
+                  onCheckedChange={(checked) => 
+                    handleVisibilityChange(column.field, Boolean(checked))
+                  }
+                />
+                
+                <Label
+                  htmlFor={column.field}
+                  className="flex-1 cursor-pointer"
+                >
+                  {column.label}
+                </Label>
+              </div>
+            ))}
+          </div>
+          
+          <div className="flex justify-between gap-3 pt-4 border-t">
+            <Button variant="outline" onClick={handleReset}>
+              Reset to Default
             </Button>
             <Button onClick={handleSave}>
-              Save Changes
+              Apply Changes
             </Button>
           </div>
         </div>
@@ -105,5 +104,3 @@ const LeadColumnCustomizer = ({ columns, onColumnsChange }: LeadColumnCustomizer
     </Dialog>
   );
 };
-
-export default LeadColumnCustomizer;

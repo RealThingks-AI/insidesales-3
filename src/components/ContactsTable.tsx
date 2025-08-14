@@ -1,218 +1,232 @@
 
-import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { Eye, Edit, Plus, Building, Trash2 } from 'lucide-react';
-import { ContactColumn } from './ContactColumnCustomizer';
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { Search, Edit, Trash2, Phone, Mail, Calendar, MapPin, Building, User } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionsBar } from "@/components/BulkActionsBar";
+import { ContactColumn } from "@/types/columns";
 
 interface Contact {
   id: string;
-  contact_name: string;
-  company_name: string;
-  position: string;
+  name: string;
   email: string;
-  phone_no: string;
-  mobile_no: string;
-  linkedin: string;
-  website: string;
-  contact_source: string;
-  lead_status: string;
-  industry: string;
-  no_of_employees: number;
-  annual_revenue: number;
+  phone: string;
+  company: string;
+  title: string;
   city: string;
-  state: string;
   country: string;
-  description: string;
-  created_time: string;
-  contact_owner: string;
-  contact_owner_name?: string;
-  created_by_name?: string;
-  modified_by_name?: string;
+  lastContacted: string;
+  status: 'active' | 'inactive' | 'pending';
 }
+
+const sampleContacts: Contact[] = [
+  {
+    id: "1",
+    name: "John Doe",
+    email: "john.doe@example.com",
+    phone: "123-456-7890",
+    company: "Acme Corp",
+    title: "CEO",
+    city: "New York",
+    country: "USA",
+    lastContacted: "2023-01-01",
+    status: "active",
+  },
+  {
+    id: "2",
+    name: "Jane Smith",
+    email: "jane.smith@example.com",
+    phone: "987-654-3210",
+    company: "Beta Inc",
+    title: "CTO",
+    city: "San Francisco",
+    country: "USA",
+    lastContacted: "2023-02-15",
+    status: "inactive",
+  },
+  {
+    id: "3",
+    name: "Alice Johnson",
+    email: "alice.johnson@example.com",
+    phone: "555-123-4567",
+    company: "Gamma Ltd",
+    title: "Marketing Manager",
+    city: "London",
+    country: "UK",
+    lastContacted: "2023-03-20",
+    status: "pending",
+  },
+  {
+    id: "4",
+    name: "Bob Williams",
+    email: "bob.williams@example.com",
+    phone: "111-222-3333",
+    company: "Delta Co",
+    title: "Sales Director",
+    city: "Sydney",
+    country: "Australia",
+    lastContacted: "2023-04-01",
+    status: "active",
+  },
+  {
+    id: "5",
+    name: "Emily Brown",
+    email: "emily.brown@example.com",
+    phone: "444-555-6666",
+    company: "Epsilon Group",
+    title: "Project Manager",
+    city: "Toronto",
+    country: "Canada",
+    lastContacted: "2023-05-05",
+    status: "inactive",
+  },
+];
 
 interface ContactsTableProps {
+  columns: ContactColumn[];
   contacts: Contact[];
-  visibleColumns: ContactColumn[];
-  onViewContact: (contactId: string) => void;
-  onEditContact: (contact: Contact) => void;
-  onDeleteContact: (contactId: string) => void;
-  onAddContact: () => void;
-  selectedItems: string[];
-  onToggleSelect: (contactId: string) => void;
+  onEditContact: (id: string) => void;
+  onDeleteContact: (id: string) => void;
 }
 
-const ContactsTable = ({ 
-  contacts, 
-  visibleColumns, 
-  onViewContact, 
-  onEditContact,
-  onDeleteContact,
-  onAddContact,
-  selectedItems,
-  onToggleSelect
-}: ContactsTableProps) => {
-  const [deleteContactId, setDeleteContactId] = useState<string | null>(null);
+const ContactsTable = ({ columns, contacts, onEditContact, onDeleteContact }: ContactsTableProps) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
 
-  const getStageColor = (stage: string) => {
-    switch (stage?.toLowerCase()) {
-      case 'new':
-        return 'bg-blue-100 text-blue-800';
-      case 'contacted':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'qualified':
-        return 'bg-green-100 text-green-800';
-      case 'lost':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const filteredContacts = contacts.filter(contact =>
+    Object.values(contact).some(value =>
+      typeof value === 'string' && value.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  );
 
-  const renderCellValue = (contact: Contact, columnKey: string) => {
-    const value = contact[columnKey as keyof Contact];
-    
-    if (columnKey === 'contact_name') {
-      return (
-        <div className="space-y-1">
-          <button
-            onClick={() => onEditContact(contact)}
-            className="text-blue-600 hover:text-blue-800 hover:underline font-medium text-left"
-          >
-            {value || '-'}
-          </button>
-          <div className="text-xs text-gray-500">
-            Created by: {contact.created_by_name || 'Unknown User'}
-          </div>
-        </div>
-      );
-    }
-    
-    if (columnKey === 'lead_status') {
-      return (
-        <Badge className={getStageColor(value as string)}>
-          {value || 'New'}
-        </Badge>
-      );
-    }
-    
-    if (columnKey === 'contact_owner') {
-      return contact.contact_owner_name || 'Unknown User';
-    }
-    
-    if (columnKey === 'annual_revenue' && value) {
-      return `$${(value as number).toLocaleString()}`;
-    }
-    
-    return value || '-';
-  };
-
-  const handleDeleteConfirm = () => {
-    if (deleteContactId) {
-      onDeleteContact(deleteContactId);
-      setDeleteContactId(null);
-    }
-  };
-
-  if (contacts.length === 0) {
-    return (
-      <div className="p-12 text-center">
-        <Building className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No contacts found</h3>
-        <p className="text-gray-600 mb-4">Get started by adding your first contact.</p>
-        <Button onClick={onAddContact}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Contact
-        </Button>
-      </div>
+  const toggleContactSelection = (id: string) => {
+    setSelectedContacts(prev =>
+      prev.includes(id) ? prev.filter(contactId => contactId !== id) : [...prev, id]
     );
-  }
+  };
+
+  const isAllSelected = filteredContacts.length > 0 && selectedContacts.length === filteredContacts.length;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedContacts([]);
+    } else {
+      setSelectedContacts(filteredContacts.map(contact => contact.id));
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    selectedContacts.forEach(id => onDeleteContact(id));
+    setSelectedContacts([]);
+  };
+
+  const handleExportSelected = () => {
+    console.log('Exporting selected contacts:', selectedContacts);
+    // Add export logic here
+  };
+
+  const handleClearSelection = () => {
+    setSelectedContacts([]);
+  };
+
+  const visibleColumns = columns.filter(column => column.visible);
 
   return (
-    <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-12">
-              <span className="sr-only">Select</span>
-            </TableHead>
-            {visibleColumns.map((column) => (
-              <TableHead key={column.key}>{column.label}</TableHead>
-            ))}
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {contacts.map((contact) => (
-            <TableRow key={contact.id}>
-              <TableCell>
-                <Checkbox
-                  checked={selectedItems.includes(contact.id)}
-                  onCheckedChange={() => onToggleSelect(contact.id)}
-                />
-              </TableCell>
-              {visibleColumns.map((column) => (
-                <TableCell key={column.key}>
-                  {renderCellValue(contact, column.key)}
-                </TableCell>
-              ))}
-              <TableCell>
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => onViewContact(contact.id)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => onEditContact(contact)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => setDeleteContactId(contact.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+    <Card>
+      <CardHeader>
+        <CardTitle>Contacts List</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-4">
+          <Input
+            type="text"
+            placeholder="Search contacts..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+        </div>
 
-      <AlertDialog open={!!deleteContactId} onOpenChange={() => setDeleteContactId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this contact? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+        {selectedContacts.length > 0 && (
+          <BulkActionsBar
+            selectedCount={selectedContacts.length}
+            onDelete={handleDeleteSelected}
+            onExport={handleExportSelected}
+            onClearSelection={handleClearSelection}
+          />
+        )}
+
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[50px]">
+                  <Checkbox
+                    checked={isAllSelected}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
+                {visibleColumns.map(column => (
+                  <TableHead key={column.key}>{column.label}</TableHead>
+                ))}
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredContacts.map(contact => (
+                <TableRow key={contact.id}>
+                  <TableCell className="w-[50px]">
+                    <Checkbox
+                      checked={selectedContacts.includes(contact.id)}
+                      onCheckedChange={() => toggleContactSelection(contact.id)}
+                    />
+                  </TableCell>
+                  {visibleColumns.map(column => (
+                    <TableCell key={column.key}>
+                      {column.key === 'status' ? (
+                        <Badge variant={contact.status === 'active' ? 'default' : 'secondary'}>
+                          {contact.status}
+                        </Badge>
+                      ) : (
+                        contact[column.key as keyof Contact]?.toString() || ''
+                      )}
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-right font-medium">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onEditContact(contact.id)}
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onDeleteContact(contact.id)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 
