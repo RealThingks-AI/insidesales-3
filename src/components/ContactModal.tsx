@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useUsers } from "@/hooks/useUsers";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -22,8 +23,9 @@ const contactSchema = z.object({
   website: z.string().url("Invalid website URL").optional().or(z.literal("")),
   contact_source: z.string().optional(),
   industry: z.string().optional(),
-  region: z.string().optional(), // Changed from country to region
+  region: z.string().optional(),
   description: z.string().optional(),
+  contact_owner: z.string().optional(),
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
@@ -39,8 +41,9 @@ interface Contact {
   website?: string;
   contact_source?: string;
   industry?: string;
-  region?: string; // Changed from country to region
+  region?: string;
   description?: string;
+  contact_owner?: string;
 }
 
 interface ContactModalProps {
@@ -76,6 +79,8 @@ const regions = [
 export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: ContactModalProps) => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const { users, loading: usersLoading } = useUsers();
 
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
@@ -89,10 +94,25 @@ export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: Contact
       website: "",
       contact_source: "",
       industry: "Automotive",
-      region: "EU", // Changed from country to region
+      region: "EU",
       description: "",
+      contact_owner: "",
     },
   });
+
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUserId(user.id);
+        // Set current user as default owner for new contacts
+        if (!contact) {
+          form.setValue("contact_owner", user.id);
+        }
+      }
+    };
+    getCurrentUser();
+  }, [contact, form]);
 
   useEffect(() => {
     if (contact) {
@@ -106,8 +126,9 @@ export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: Contact
         website: contact.website || "",
         contact_source: contact.contact_source || "",
         industry: contact.industry || "Automotive",
-        region: contact.region || "EU", // Changed from country to region
+        region: contact.region || "EU",
         description: contact.description || "",
+        contact_owner: contact.contact_owner || currentUserId,
       });
     } else {
       form.reset({
@@ -120,11 +141,12 @@ export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: Contact
         website: "",
         contact_source: "",
         industry: "Automotive",
-        region: "EU", // Changed from country to region
+        region: "EU",
         description: "",
+        contact_owner: currentUserId,
       });
     }
-  }, [contact, form]);
+  }, [contact, form, currentUserId]);
 
   const onSubmit = async (data: ContactFormData) => {
     try {
@@ -150,11 +172,11 @@ export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: Contact
         website: data.website || null,
         contact_source: data.contact_source || null,
         industry: data.industry || null,
-        region: data.region || null, // Changed from country to region
+        region: data.region || null,
         description: data.description || null,
         created_by: user.data.user.id,
         modified_by: user.data.user.id,
-        contact_owner: user.data.user.id,
+        contact_owner: data.contact_owner || user.data.user.id,
       };
 
       if (contact) {
@@ -377,6 +399,32 @@ export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: Contact
                         {regions.map((region) => (
                           <SelectItem key={region} value={region}>
                             {region}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="contact_owner"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact Owner</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={usersLoading}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={usersLoading ? "Loading users..." : "Select owner"} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {users.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.display_name}
+                            {user.id === currentUserId && " (You)"}
                           </SelectItem>
                         ))}
                       </SelectContent>
