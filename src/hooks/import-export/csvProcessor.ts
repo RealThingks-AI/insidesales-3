@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { CSVParser } from '@/utils/csvParser';
@@ -214,6 +213,12 @@ export class CSVProcessor {
       case 'leads':
         return await supabase
           .from('leads')
+          .insert([record])
+          .select('id');
+      
+      case 'meetings':
+        return await supabase
+          .from('meetings')
           .insert([record])
           .select('id');
       
