@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -210,7 +211,7 @@ export const MeetingModal = ({ isOpen, onClose, meeting, leads }: MeetingModalPr
       };
 
       if (meeting) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("meetings")
           .update(meetingData)
           .eq("id", meeting.id);
@@ -222,7 +223,7 @@ export const MeetingModal = ({ isOpen, onClose, meeting, leads }: MeetingModalPr
           description: "Meeting updated successfully",
         });
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("meetings")
           .insert([meetingData]);
 

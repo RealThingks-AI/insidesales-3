@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -74,7 +75,7 @@ export const MeetingOutcomeModal = ({ isOpen, onClose, meeting }: MeetingOutcome
     if (!meeting) return;
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("meeting_outcomes")
         .select("*")
         .eq("meeting_id", meeting.id)
@@ -85,12 +86,23 @@ export const MeetingOutcomeModal = ({ isOpen, onClose, meeting }: MeetingOutcome
       }
 
       if (data) {
-        setExistingOutcome(data);
+        // Type assertion to handle the data structure mismatch
+        const outcomeData = data as any;
+        const meetingOutcome: MeetingOutcome = {
+          id: outcomeData.id,
+          outcome_type: outcomeData.outcome_type,
+          summary: outcomeData.summary || "",
+          next_steps: outcomeData.next_steps || "",
+          interested_in_deal: outcomeData.interested_in_deal || false,
+          meeting_id: outcomeData.meeting_id,
+        };
+        
+        setExistingOutcome(meetingOutcome);
         setFormData({
-          outcome_type: data.outcome_type,
-          summary: data.summary || "",
-          next_steps: data.next_steps || "",
-          interested_in_deal: data.interested_in_deal ? "yes" : "no",
+          outcome_type: meetingOutcome.outcome_type,
+          summary: meetingOutcome.summary || "",
+          next_steps: meetingOutcome.next_steps || "",
+          interested_in_deal: meetingOutcome.interested_in_deal ? "yes" : "no",
         });
       } else {
         setExistingOutcome(null);
@@ -138,7 +150,7 @@ export const MeetingOutcomeModal = ({ isOpen, onClose, meeting }: MeetingOutcome
       };
 
       if (existingOutcome) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("meeting_outcomes")
           .update(outcomeData)
           .eq("id", existingOutcome.id);
@@ -150,7 +162,7 @@ export const MeetingOutcomeModal = ({ isOpen, onClose, meeting }: MeetingOutcome
           description: "Meeting outcome updated successfully",
         });
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("meeting_outcomes")
           .insert([outcomeData]);
 
