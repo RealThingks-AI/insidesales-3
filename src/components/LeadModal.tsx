@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,7 +15,7 @@ const leadSchema = z.object({
   lead_name: z.string().min(1, "Lead name is required"),
   company_name: z.string().optional(),
   position: z.string().optional(),
-  email: z.string().email("Invalid email address").min(1, "Email is required"),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone_no: z.string().optional(),
   linkedin: z.string().url("Invalid LinkedIn URL").optional().or(z.literal("")),
   website: z.string().url("Invalid website URL").optional().or(z.literal("")),
@@ -160,7 +159,7 @@ export const LeadModal = ({ open, onOpenChange, lead, onSuccess }: LeadModalProp
         lead_name: data.lead_name,
         company_name: data.company_name || null,
         position: data.position || null,
-        email: data.email,
+        email: data.email || null,
         phone_no: data.phone_no || null,
         linkedin: data.linkedin || null,
         website: data.website || null,
@@ -276,9 +275,9 @@ export const LeadModal = ({ open, onOpenChange, lead, onSuccess }: LeadModalProp
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email *</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder=" " {...field} />
+                      <Input type="email" placeholder="email@example.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
