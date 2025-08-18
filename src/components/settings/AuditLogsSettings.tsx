@@ -162,17 +162,59 @@ const AuditLogsSettings = () => {
   };
 
   const getActionIcon = (action: string) => {
+    // CRUD Operations
+    if (action === 'CREATE' || action === 'BULK_CREATE') return <Activity className="h-4 w-4 text-green-600" />;
+    if (action === 'UPDATE' || action === 'BULK_UPDATE') return <FileText className="h-4 w-4 text-blue-600" />;
+    if (action === 'DELETE' || action === 'BULK_DELETE') return <AlertTriangle className="h-4 w-4 text-red-600" />;
+    // User Management
     if (action.includes('USER')) return <Activity className="h-4 w-4" />;
-    if (action.includes('DATA')) return <FileText className="h-4 w-4" />;
-    if (action.includes('EXPORT')) return <Download className="h-4 w-4" />;
+    // Data Export
+    if (action.includes('DATA') || action.includes('EXPORT')) return <Download className="h-4 w-4" />;
+    // Session Management
+    if (action.includes('SESSION')) return <Activity className="h-4 w-4 text-gray-500" />;
     return <AlertTriangle className="h-4 w-4" />;
   };
 
   const getActionBadgeVariant = (action: string) => {
+    // CRUD Operations
+    if (action === 'CREATE' || action === 'BULK_CREATE') return 'default';
+    if (action === 'UPDATE' || action === 'BULK_UPDATE') return 'secondary';
+    if (action === 'DELETE' || action === 'BULK_DELETE') return 'destructive';
+    // User Management
     if (action.includes('CREATED') || action.includes('ACTIVATED')) return 'default';
     if (action.includes('DELETED') || action.includes('DEACTIVATED')) return 'destructive';
     if (action.includes('ROLE_CHANGE') || action.includes('PASSWORD_RESET')) return 'secondary';
+    // Session Management
+    if (action.includes('SESSION')) return 'outline';
     return 'outline';
+  };
+
+  const getReadableAction = (action: string) => {
+    switch (action) {
+      case 'CREATE': return 'Created Record';
+      case 'UPDATE': return 'Updated Record';
+      case 'DELETE': return 'Deleted Record';
+      case 'BULK_CREATE': return 'Bulk Created Records';
+      case 'BULK_UPDATE': return 'Bulk Updated Records';
+      case 'BULK_DELETE': return 'Bulk Deleted Records';
+      case 'SESSION_START': return 'User Login';
+      case 'SESSION_END': return 'User Logout';
+      case 'SESSION_ACTIVE': return 'Session Active';
+      case 'SESSION_INACTIVE': return 'Session Inactive';
+      default: return action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+  };
+
+  const getReadableResourceType = (resourceType: string) => {
+    switch (resourceType) {
+      case 'contacts': return 'Contacts';
+      case 'leads': return 'Leads';
+      case 'deals': return 'Deals';
+      case 'auth': return 'Authentication';
+      case 'user_roles': return 'User Roles';
+      case 'profiles': return 'User Profiles';
+      default: return resourceType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
   };
 
   return (
@@ -251,11 +293,11 @@ const AuditLogsSettings = () => {
                       <TableCell>
                         <Badge variant={getActionBadgeVariant(log.action)} className="flex items-center gap-1 w-fit">
                           {getActionIcon(log.action)}
-                          {log.action}
+                          {getReadableAction(log.action)}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <span className="font-medium">{log.resource_type}</span>
+                        <span className="font-medium">{getReadableResourceType(log.resource_type)}</span>
                         {log.resource_id && (
                           <span className="text-muted-foreground text-sm block">
                             ID: {log.resource_id.substring(0, 8)}...
@@ -319,9 +361,9 @@ const AuditLogsSettings = () => {
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
               <div className="text-2xl font-bold">
-                {logs.filter(log => log.action.includes('DATA')).length}
+                {logs.filter(log => ['CREATE', 'UPDATE', 'DELETE', 'BULK_CREATE', 'BULK_UPDATE', 'BULK_DELETE'].includes(log.action)).length}
               </div>
-              <div className="text-sm text-muted-foreground">Data Access</div>
+              <div className="text-sm text-muted-foreground">CRUD Operations</div>
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
               <div className="text-2xl font-bold">
