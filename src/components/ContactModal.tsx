@@ -1,12 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
-import { useUsers } from "@/hooks/useUsers";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -15,18 +12,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 
 const contactSchema = z.object({
-  contact_name: z.string().min(1, "Contact name is required"),
+  contact_name: z.string().min(1, "Contact name is required"), // mandatory
   company_name: z.string().optional(),
   position: z.string().optional(),
-  email: z.string().email("Invalid email address").optional().or(z.literal("")),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")), // optional now
   phone_no: z.string().optional(),
   linkedin: z.string().url("Invalid LinkedIn URL").optional().or(z.literal("")),
   website: z.string().url("Invalid website URL").optional().or(z.literal("")),
   contact_source: z.string().optional(),
   industry: z.string().optional(),
-  country: z.string().optional(),
+  region: z.string().optional(), // Changed from country to region
   description: z.string().optional(),
-  contact_owner: z.string().min(1, "Contact owner is required"),
 });
 
 type ContactFormData = z.infer<typeof contactSchema>;
@@ -42,9 +38,8 @@ interface Contact {
   website?: string;
   contact_source?: string;
   industry?: string;
-  country?: string;
+  region?: string;
   description?: string;
-  contact_owner?: string;
 }
 
 interface ContactModalProps {
@@ -66,12 +61,7 @@ const contactSources = [
 const industries = [
   "Automotive",
   "Technology",
-  "Healthcare",
-  "Finance",
   "Manufacturing",
-  "Retail",
-  "Education",
-  "Real Estate",
   "Other"
 ];
 
@@ -84,8 +74,6 @@ const regions = [
 
 export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: ContactModalProps) => {
   const { toast } = useToast();
-  const { user } = useAuth();
-  const { users, loading: usersLoading } = useUsers();
   const [loading, setLoading] = useState(false);
 
   const form = useForm<ContactFormData>({
@@ -100,9 +88,8 @@ export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: Contact
       website: "",
       contact_source: "",
       industry: "Automotive",
-      country: "EU",
+      region: "EU",
       description: "",
-      contact_owner: user?.id || "",
     },
   });
 
@@ -118,9 +105,8 @@ export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: Contact
         website: contact.website || "",
         contact_source: contact.contact_source || "",
         industry: contact.industry || "Automotive",
-        country: contact.country || "EU",
+        region: contact.region || "EU",
         description: contact.description || "",
-        contact_owner: contact.contact_owner || user?.id || "",
       });
     } else {
       form.reset({
@@ -133,18 +119,18 @@ export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: Contact
         website: "",
         contact_source: "",
         industry: "Automotive",
-        country: "EU",
+        region: "EU",
         description: "",
-        contact_owner: user?.id || "",
       });
     }
-  }, [contact, form, user?.id]);
+  }, [contact, form]);
 
   const onSubmit = async (data: ContactFormData) => {
     try {
       setLoading(true);
+      const user = await supabase.auth.getUser();
       
-      if (!user) {
+      if (!user.data.user) {
         toast({
           title: "Error",
           description: "You must be logged in to perform this action",
@@ -163,15 +149,14 @@ export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: Contact
         website: data.website || null,
         contact_source: data.contact_source || null,
         industry: data.industry || null,
-        country: data.country || null,
+        region: data.region || null,
         description: data.description || null,
-        contact_owner: data.contact_owner,
-        created_by: user.id,
-        modified_by: user.id,
+        created_by: user.data.user.id,
+        modified_by: user.data.user.id,
+        contact_owner: user.data.user.id,
       };
 
       if (contact) {
-        // Update existing contact
         const { error } = await supabase
           .from('contacts')
           .update({
@@ -187,7 +172,6 @@ export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: Contact
           description: "Contact updated successfully",
         });
       } else {
-        // Create new contact
         const { error } = await supabase
           .from('contacts')
           .insert(contactData);
@@ -376,7 +360,7 @@ export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: Contact
 
               <FormField
                 control={form.control}
-                name="country"
+                name="region"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Region</FormLabel>
@@ -390,31 +374,6 @@ export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: Contact
                         {regions.map((region) => (
                           <SelectItem key={region} value={region}>
                             {region}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="contact_owner"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contact Owner *</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={usersLoading}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={usersLoading ? "Loading users..." : "Select contact owner"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {users.map((user) => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.display_name}
                           </SelectItem>
                         ))}
                       </SelectContent>

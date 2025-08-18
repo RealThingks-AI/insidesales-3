@@ -314,98 +314,6 @@ export type Database = {
         }
         Relationships: []
       }
-      meeting_outcomes: {
-        Row: {
-          created_at: string
-          created_by: string
-          id: string
-          interested_in_deal: boolean | null
-          meeting_id: string
-          next_steps: string | null
-          outcome_type: string
-          summary: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by: string
-          id?: string
-          interested_in_deal?: boolean | null
-          meeting_id: string
-          next_steps?: string | null
-          outcome_type: string
-          summary?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string
-          id?: string
-          interested_in_deal?: boolean | null
-          meeting_id?: string
-          next_steps?: string | null
-          outcome_type?: string
-          summary?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "meeting_outcomes_meeting_id_fkey"
-            columns: ["meeting_id"]
-            isOneToOne: false
-            referencedRelation: "meetings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      meetings: {
-        Row: {
-          created_at: string
-          created_by: string
-          date: string
-          description: string | null
-          duration: string
-          id: string
-          location: string | null
-          meeting_title: string
-          participants: string[] | null
-          start_time: string
-          teams_link: string | null
-          timezone: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          created_by: string
-          date: string
-          description?: string | null
-          duration: string
-          id?: string
-          location?: string | null
-          meeting_title: string
-          participants?: string[] | null
-          start_time: string
-          teams_link?: string | null
-          timezone?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          created_by?: string
-          date?: string
-          description?: string | null
-          duration?: string
-          id?: string
-          location?: string | null
-          meeting_title?: string
-          participants?: string[] | null
-          start_time?: string
-          teams_link?: string | null
-          timezone?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           created_at: string | null
@@ -466,6 +374,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       yearly_revenue_targets: {
         Row: {
           created_at: string
@@ -498,8 +430,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_role: {
+        Args: { user_id: string }
+        Returns: string
+      }
       is_current_user_admin: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_user_admin: {
+        Args: { user_id?: string }
         Returns: boolean
       }
       log_data_access: {
@@ -521,7 +461,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "admin" | "manager" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -648,6 +588,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["admin", "manager", "user"],
+    },
   },
 } as const

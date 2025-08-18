@@ -13,58 +13,61 @@ interface User {
   };
 }
 
-interface DeleteUserDialogProps {
+interface ResetPasswordDialogProps {
   open: boolean;
   onClose: () => void;
   user: User | null;
   onSuccess: () => void;
 }
 
-const DeleteUserDialog = ({ open, onClose, user, onSuccess }: DeleteUserDialogProps) => {
+const ResetPasswordDialog = ({ open, onClose, user, onSuccess }: ResetPasswordDialogProps) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const handleDelete = async () => {
+  const handleResetPassword = async () => {
     if (!user) return;
     
     setLoading(true);
 
     try {
-      console.log('Starting user deletion for:', user.id);
+      console.log('Resetting password for user:', user.email);
       
       toast({
-        title: "Deleting User",
-        description: "Please wait while we delete the user account...",
+        title: "Sending Reset Email",
+        description: "Please wait while we send the password reset email...",
       });
 
       const { data, error } = await supabase.functions.invoke('user-admin', {
-        method: 'DELETE',
-        body: { userId: user.id }
+        method: 'POST',
+        body: { 
+          action: 'reset-password',
+          email: user.email 
+        }
       });
 
       if (error) {
         console.error('Edge function error:', error);
-        throw new Error(error.message || "Failed to delete user");
+        throw new Error(error.message || "Failed to send reset password email");
       }
 
       if (data?.success) {
-        console.log('User deletion successful:', data);
+        console.log('Password reset email sent successfully:', data);
         
         toast({
-          title: "Success",
-          description: `User "${user.user_metadata?.full_name || user.email}" has been deleted successfully.`,
+          title: "Reset Email Sent",
+          description: `Password reset email has been sent to ${user.email}`,
         });
         
         onSuccess();
         onClose();
       } else {
-        throw new Error(data?.error || "Failed to delete user");
+        throw new Error(data?.error || "Failed to send reset password email");
       }
       
     } catch (error: any) {
-      console.error('Error deleting user:', error);
+      console.error('Error resetting password:', error);
       
-      let errorMessage = "An unexpected error occurred while deleting the user.";
+      let errorMessage = "An unexpected error occurred while sending the reset email.";
       
       if (error.message?.includes("Failed to fetch")) {
         errorMessage = "Network error occurred. Please check your connection and try again.";
@@ -75,7 +78,7 @@ const DeleteUserDialog = ({ open, onClose, user, onSuccess }: DeleteUserDialogPr
       }
       
       toast({
-        title: "Delete Failed",
+        title: "Reset Failed",
         description: errorMessage,
         variant: "destructive",
       });
@@ -96,24 +99,23 @@ const DeleteUserDialog = ({ open, onClose, user, onSuccess }: DeleteUserDialogPr
     <AlertDialog open={open} onOpenChange={handleClose}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete User Account</AlertDialogTitle>
+          <AlertDialogTitle>Reset User Password</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to permanently delete the user "{user.user_metadata?.full_name || user.email}"? 
+            Are you sure you want to send a password reset email to "{user.user_metadata?.full_name || user.email}"?
             <br /><br />
-            <strong>This action cannot be undone and will:</strong>
-            <br />• Remove the user from the authentication system
-            <br />• Delete all associated profile data
-            <br />• Revoke all access permissions immediately
+            <strong>This will:</strong>
+            <br />• Send a password reset email to {user.email}
+            <br />• Allow the user to create a new password
+            <br />• The reset link will expire after 1 hour
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={handleDelete}
+            onClick={handleResetPassword}
             disabled={loading}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {loading ? 'Deleting...' : 'Delete User'}
+            {loading ? 'Sending...' : 'Send Reset Email'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -121,4 +123,4 @@ const DeleteUserDialog = ({ open, onClose, user, onSuccess }: DeleteUserDialogPr
   );
 };
 
-export default DeleteUserDialog;
+export default ResetPasswordDialog;
