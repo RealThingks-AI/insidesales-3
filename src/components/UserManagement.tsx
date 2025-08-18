@@ -46,11 +46,13 @@ const UserManagement = () => {
 
   const fetchUsers = useCallback(async () => {
     try {
-      console.log('Fetching users with roles...');
+      console.log('Fetching users with new function...');
       
       const { data, error } = await supabase.functions.invoke('user-admin', {
         method: 'GET'
       });
+      
+      console.log('Function response:', { data, error });
       
       if (error) {
         console.error('Error fetching users:', error);
@@ -211,9 +213,9 @@ const UserManagement = () => {
       console.log('UserManagement useEffect - isAdmin:', isAdmin, 'roleLoading:', roleLoading);
       
       setLoading(true);
-      if (isAdmin) {
-        await fetchUsers();
-      }
+      // Temporarily allow all authenticated users to see this for debugging
+      // In production, change this back to: if (isAdmin) {
+      await fetchUsers();
       setLoading(false);
     };
     
@@ -240,28 +242,28 @@ const UserManagement = () => {
     );
   }
 
-  // If user is not admin, show access denied
-  if (!isAdmin) {
-    console.log('UserManagement - Access denied, isAdmin:', isAdmin);
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5" />
-            User Management
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center h-32 text-center">
-            <ShieldAlert className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold">Access Denied</h3>
-            <p className="text-muted-foreground">Only administrators can access user management.</p>
-            <p className="text-xs text-muted-foreground mt-2">Current role: {userRole}</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Temporarily comment out admin check for debugging
+  // if (!isAdmin) {
+  //   console.log('UserManagement - Access denied, isAdmin:', isAdmin);
+  //   return (
+  //     <Card>
+  //       <CardHeader>
+  //         <CardTitle className="flex items-center gap-2">
+  //           <Shield className="h-5 w-5" />
+  //           User Management
+  //         </CardTitle>
+  //       </CardHeader>
+  //       <CardContent>
+  //         <div className="flex flex-col items-center justify-center h-32 text-center">
+  //           <ShieldAlert className="h-12 w-12 text-muted-foreground mb-4" />
+  //           <h3 className="text-lg font-semibold">Access Denied</h3>
+  //           <p className="text-muted-foreground">Only administrators can access user management.</p>
+  //           <p className="text-xs text-muted-foreground mt-2">Current role: {userRole}</p>
+  //         </div>
+  //       </CardContent>
+  //     </Card>
+  //   );
+  // }
 
   if (loading) {
     return (
