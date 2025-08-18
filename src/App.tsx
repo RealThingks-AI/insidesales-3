@@ -111,7 +111,6 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
 
   return <>{children}</>;
 };
-
 // App Router Component - inside the auth context
 const AppRouter = () => (
   <BrowserRouter>
