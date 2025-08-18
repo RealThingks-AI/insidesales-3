@@ -19,18 +19,10 @@ export const useUserRole = () => {
       try {
         console.log('Fetching role for user:', user.email);
         
-        // Use the RPC function to get user role
-        const { data, error } = await supabase.rpc('get_user_role', {
-          user_id: user.id
-        });
-
-        if (error) {
-          console.error('Error fetching user role:', error);
-          setUserRole('user');
-        } else {
-          console.log('User role fetched:', data);
-          setUserRole(data || 'user');
-        }
+        // Check user metadata directly for role
+        const role = user.user_metadata?.role || 'user';
+        console.log('User role from metadata:', role);
+        setUserRole(role);
       } catch (error) {
         console.error('Error in fetchUserRole:', error);
         setUserRole('user');
