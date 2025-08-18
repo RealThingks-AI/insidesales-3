@@ -431,7 +431,7 @@ export type Database = {
     }
     Functions: {
       get_user_role: {
-        Args: { user_id: string }
+        Args: { p_user_id: string }
         Returns: string
       }
       is_current_user_admin: {
@@ -457,6 +457,10 @@ export type Database = {
           p_resource_id?: string
           p_resource_type: string
         }
+        Returns: undefined
+      }
+      update_user_role: {
+        Args: { p_role: string; p_user_id: string }
         Returns: undefined
       }
     }
