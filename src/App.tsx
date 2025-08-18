@@ -14,12 +14,11 @@ import DealsPage from "./pages/DealsPage";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
-import { useLocation } from "react-router-dom";
 import { useState } from "react";
 
 const queryClient = new QueryClient();
 
-// Layout Component for pages with fixed sidebar
+// Layout Component for all pages with fixed sidebar
 const FixedSidebarLayout = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false); // Start collapsed
   
@@ -40,25 +39,9 @@ const FixedSidebarLayout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-// Regular Layout Component for other pages
-const RegularLayout = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <div className="min-h-screen flex w-full">
-      <AppSidebar />
-      <main className="flex-1 bg-background">
-        {children}
-      </main>
-    </div>
-  );
-};
-
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  const location = useLocation();
-  
-  // Check if current route needs fixed sidebar
-  const needsFixedSidebar = ['/contacts', '/leads'].includes(location.pathname);
 
   if (loading) {
     return (
@@ -75,18 +58,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/auth" replace />;
   }
 
-  if (needsFixedSidebar) {
-    return (
-      <FixedSidebarLayout>
-        {children}
-      </FixedSidebarLayout>
-    );
-  }
-
+  // Use FixedSidebarLayout for all protected routes
   return (
-    <RegularLayout>
+    <FixedSidebarLayout>
       {children}
-    </RegularLayout>
+    </FixedSidebarLayout>
   );
 };
 
@@ -111,6 +87,7 @@ const AuthRoute = ({ children }: { children: React.ReactNode }) => {
 
   return <>{children}</>;
 };
+
 // App Router Component - inside the auth context
 const AppRouter = () => (
   <BrowserRouter>
@@ -167,4 +144,3 @@ const App = () => (
 );
 
 export default App;
-
