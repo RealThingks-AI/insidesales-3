@@ -145,35 +145,58 @@ serve(async (req) => {
 
         console.log('Changing role for user:', userId, 'to:', newRole);
 
-        // Update role in user_roles table
-        const { error: roleError } = await supabaseAdmin
-          .from('user_roles')
-          .upsert({
-            user_id: userId,
-            role: newRole,
-            assigned_by: user.user.id,
-            assigned_at: new Date().toISOString()
+        try {
+          // First, update the user metadata in Supabase Auth
+          const { data: updatedUser, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+            userId,
+            { 
+              user_metadata: { 
+                role: newRole 
+              } 
+            }
+          );
+
+          if (updateError) {
+            console.error('Error updating user metadata:', updateError);
+            return new Response(
+              JSON.stringify({ error: `Failed to update user metadata: ${updateError.message}` }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          // Then, use our upsert function to update the role in the database
+          const { error: roleError } = await supabaseAdmin.rpc('update_user_role', {
+            p_user_id: userId,
+            p_role: newRole
           });
 
-        if (roleError) {
-          console.error('Error updating role:', roleError);
+          if (roleError) {
+            console.error('Error updating role in database:', roleError);
+            return new Response(
+              JSON.stringify({ error: `Role update failed: ${roleError.message}` }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          console.log('Role updated successfully in both auth and database');
           return new Response(
-            JSON.stringify({ error: `Role update failed: ${roleError.message}` }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ 
+              success: true,
+              message: `User role updated to ${newRole}`,
+              user: updatedUser.user
+            }),
+            { 
+              status: 200, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        } catch (error) {
+          console.error('Error in change-role:', error);
+          return new Response(
+            JSON.stringify({ error: `Role update failed: ${error.message}` }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-
-        console.log('Role updated successfully');
-        return new Response(
-          JSON.stringify({ 
-            success: true,
-            message: 'Role updated successfully'
-          }),
-          { 
-            status: 200, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
       }
 
       // Handle user creation
