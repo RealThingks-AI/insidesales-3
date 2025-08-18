@@ -92,13 +92,27 @@ const AuditLogsSettings = () => {
       filtered = filtered.filter(log => {
         switch (actionFilter) {
           case 'user_management':
-            return ['USER_CREATED', 'USER_DELETED', 'USER_ACTIVATED', 'USER_DEACTIVATED', 'ROLE_CHANGE', 'PASSWORD_RESET'].includes(log.action);
+            return ['USER_CREATED', 'USER_DELETED', 'USER_ACTIVATED', 'USER_DEACTIVATED', 'ROLE_CHANGE', 'PASSWORD_RESET', 'ADMIN_ACTION'].includes(log.action) ||
+                   log.action.includes('USER_') || 
+                   log.action.includes('ROLE_') ||
+                   log.resource_type === 'user_roles' ||
+                   log.resource_type === 'profiles';
           case 'data_access':
-            return log.action.includes('DATA_ACCESS') || log.action.includes('SENSITIVE_DATA_ACCESS');
+            return log.action.includes('DATA_ACCESS') || 
+                   log.action.includes('SENSITIVE_DATA_ACCESS') ||
+                   log.action.includes('SELECT') ||
+                   log.action.includes('INSERT') ||
+                   log.action.includes('UPDATE') ||
+                   log.action.includes('DELETE') ||
+                   ['contacts', 'deals', 'leads'].includes(log.resource_type);
           case 'authentication':
-            return log.action.includes('LOGIN') || log.action.includes('LOGOUT') || log.action.includes('AUTH');
+            return log.action.includes('SESSION_') || 
+                   log.action.includes('LOGIN') || 
+                   log.action.includes('LOGOUT') || 
+                   log.action.includes('AUTH') ||
+                   log.resource_type === 'auth';
           case 'export':
-            return log.action.includes('EXPORT');
+            return log.action.includes('EXPORT') || log.action.includes('DATA_EXPORT');
           default:
             return true;
         }
