@@ -104,6 +104,7 @@ const AuditLogsSettings = () => {
                    log.action.includes('INSERT') ||
                    log.action.includes('UPDATE') ||
                    log.action.includes('DELETE') ||
+                   ['CREATE', 'UPDATE', 'DELETE', 'BULK_CREATE', 'BULK_UPDATE', 'BULK_DELETE'].includes(log.action) ||
                    ['contacts', 'deals', 'leads'].includes(log.resource_type);
           case 'authentication':
             return log.action.includes('SESSION_') || 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useCRUDAudit } from "@/hooks/useCRUDAudit";
 import { useUserDisplayNames } from "@/hooks/useUserDisplayNames";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -104,6 +105,7 @@ export const LeadTable = ({
   const {
     toast
   } = useToast();
+  const { logDelete } = useCRUDAudit();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [filteredLeads, setFilteredLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,10 +179,17 @@ export const LeadTable = ({
   };
   const handleDelete = async (id: string) => {
     try {
+      // Find the lead first to log the deleted data
+      const leadToDelete = leads.find(l => l.id === id);
+      
       const {
         error
       } = await supabase.from('leads').delete().eq('id', id);
       if (error) throw error;
+
+      // Log delete operation
+      await logDelete('leads', id, leadToDelete);
+
       toast({
         title: "Success",
         description: "Lead deleted successfully"
