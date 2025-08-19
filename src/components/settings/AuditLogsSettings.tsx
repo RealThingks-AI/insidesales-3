@@ -28,11 +28,18 @@ const AuditLogsSettings = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   useEffect(() => {
     fetchAuditLogs();
   }, []);
+
+  useEffect(() => {
+    if (logs.length > 0) {
+      fetchUserNames();
+    }
+  }, [logs]);
 
   useEffect(() => {
     filterLogs();
@@ -74,6 +81,26 @@ const AuditLogsSettings = () => {
     }
   };
 
+  const fetchUserNames = async () => {
+    try {
+      // Get all unique user IDs from logs
+      const uniqueUserIds = Array.from(new Set(
+        logs.map(log => log.user_id).filter(Boolean)
+      ));
+
+      if (uniqueUserIds.length === 0) return;
+
+      const { data, error } = await supabase.functions.invoke('fetch-user-display-names', {
+        body: { userIds: uniqueUserIds }
+      });
+      
+      if (error) throw error;
+      setUserNames(data?.userDisplayNames || {});
+    } catch (error) {
+      console.error('Error fetching user names:', error);
+    }
+  };
+
   const filterLogs = () => {
     let filtered = logs;
 
@@ -92,20 +119,81 @@ const AuditLogsSettings = () => {
       filtered = filtered.filter(log => {
         switch (actionFilter) {
           case 'user_management':
-            return ['USER_CREATED', 'USER_DELETED', 'USER_ACTIVATED', 'USER_DEACTIVATED', 'ROLE_CHANGE', 'PASSWORD_RESET'].includes(log.action);
-          case 'data_access':
-            return log.action.includes('DATA_ACCESS') || log.action.includes('SENSITIVE_DATA_ACCESS');
+            return ['USER_CREATED', 'USER_DELETED', 'USER_ACTIVATED', 'USER_DEACTIVATED', 'ROLE_CHANGE', 'PASSWORD_RESET', 'ADMIN_ACTION'].includes(log.action) ||
+                   log.action.includes('USER_') || 
+                   log.action.includes('ROLE_') ||
+                   log.resource_type === 'user_roles' ||
+                   log.resource_type === 'profiles';
+          case 'record_changes':
+            return ['CREATE', 'UPDATE', 'DELETE', 'BULK_CREATE', 'BULK_UPDATE', 'BULK_DELETE'].includes(log.action) ||
+                   ['contacts', 'deals', 'leads'].includes(log.resource_type);
           case 'authentication':
-            return log.action.includes('LOGIN') || log.action.includes('LOGOUT') || log.action.includes('AUTH');
+            return log.action.includes('SESSION_') || 
+                   log.action.includes('LOGIN') || 
+                   log.action.includes('LOGOUT') || 
+                   log.action.includes('AUTH') ||
+                   log.resource_type === 'auth';
           case 'export':
-            return log.action.includes('EXPORT');
+            return log.action.includes('EXPORT') || log.action.includes('DATA_EXPORT');
           default:
             return true;
         }
       });
     }
 
+    // Special filtering for authentication logs to remove noise
+    if (actionFilter === 'authentication') {
+      filtered = deduplicateAuthLogs(filtered);
+    }
+
     setFilteredLogs(filtered);
+  };
+
+  // Deduplicate consecutive authentication events to reduce noise
+  const deduplicateAuthLogs = (authLogs: AuditLog[]) => {
+    if (authLogs.length === 0) return authLogs;
+
+    const sortedLogs = [...authLogs].sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    const uniqueLogs: AuditLog[] = [];
+    const userLastActions = new Map<string, { action: string; timestamp: number }>();
+
+    for (const log of sortedLogs) {
+      const userId = log.user_id || 'system';
+      const isAuthAction = log.action.includes('LOGIN') || log.action.includes('LOGOUT') || log.action.includes('SESSION_');
+      
+      // Always include non-auth actions
+      if (!isAuthAction) {
+        uniqueLogs.push(log);
+        continue;
+      }
+
+      const currentTimestamp = new Date(log.created_at).getTime();
+      const lastUserAction = userLastActions.get(userId);
+
+      // Include if it's the first action for this user
+      if (!lastUserAction) {
+        userLastActions.set(userId, { action: log.action, timestamp: currentTimestamp });
+        uniqueLogs.push(log);
+        continue;
+      }
+
+      // Skip if it's the same action within 5 minutes (to reduce noise)
+      const timeDiff = Math.abs(currentTimestamp - lastUserAction.timestamp);
+      const fiveMinutes = 5 * 60 * 1000;
+      
+      if (log.action === lastUserAction.action && timeDiff < fiveMinutes) {
+        continue; // Skip this duplicate
+      }
+
+      // Include significant action changes or time gaps
+      userLastActions.set(userId, { action: log.action, timestamp: currentTimestamp });
+      uniqueLogs.push(log);
+    }
+
+    return uniqueLogs;
   };
 
   const exportAuditTrail = async () => {
@@ -147,17 +235,59 @@ const AuditLogsSettings = () => {
   };
 
   const getActionIcon = (action: string) => {
+    // CRUD Operations
+    if (action === 'CREATE' || action === 'BULK_CREATE') return <Activity className="h-4 w-4 text-green-600" />;
+    if (action === 'UPDATE' || action === 'BULK_UPDATE') return <FileText className="h-4 w-4 text-blue-600" />;
+    if (action === 'DELETE' || action === 'BULK_DELETE') return <AlertTriangle className="h-4 w-4 text-red-600" />;
+    // User Management
     if (action.includes('USER')) return <Activity className="h-4 w-4" />;
-    if (action.includes('DATA')) return <FileText className="h-4 w-4" />;
-    if (action.includes('EXPORT')) return <Download className="h-4 w-4" />;
+    // Data Export
+    if (action.includes('DATA') || action.includes('EXPORT')) return <Download className="h-4 w-4" />;
+    // Session Management
+    if (action.includes('SESSION')) return <Activity className="h-4 w-4 text-gray-500" />;
     return <AlertTriangle className="h-4 w-4" />;
   };
 
   const getActionBadgeVariant = (action: string) => {
+    // CRUD Operations
+    if (action === 'CREATE' || action === 'BULK_CREATE') return 'default';
+    if (action === 'UPDATE' || action === 'BULK_UPDATE') return 'secondary';
+    if (action === 'DELETE' || action === 'BULK_DELETE') return 'destructive';
+    // User Management
     if (action.includes('CREATED') || action.includes('ACTIVATED')) return 'default';
     if (action.includes('DELETED') || action.includes('DEACTIVATED')) return 'destructive';
     if (action.includes('ROLE_CHANGE') || action.includes('PASSWORD_RESET')) return 'secondary';
+    // Session Management
+    if (action.includes('SESSION')) return 'outline';
     return 'outline';
+  };
+
+  const getReadableAction = (action: string) => {
+    switch (action) {
+      case 'CREATE': return 'Created Record';
+      case 'UPDATE': return 'Updated Record';
+      case 'DELETE': return 'Deleted Record';
+      case 'BULK_CREATE': return 'Bulk Created Records';
+      case 'BULK_UPDATE': return 'Bulk Updated Records';
+      case 'BULK_DELETE': return 'Bulk Deleted Records';
+      case 'SESSION_START': return 'User Login';
+      case 'SESSION_END': return 'User Logout';
+      case 'SESSION_ACTIVE': return 'Session Active';
+      case 'SESSION_INACTIVE': return 'Session Inactive';
+      default: return action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+  };
+
+  const getReadableResourceType = (resourceType: string) => {
+    switch (resourceType) {
+      case 'contacts': return 'Contacts';
+      case 'leads': return 'Leads';
+      case 'deals': return 'Deals';
+      case 'auth': return 'Authentication';
+      case 'user_roles': return 'User Roles';
+      case 'profiles': return 'User Profiles';
+      default: return resourceType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
   };
 
   return (
@@ -202,9 +332,9 @@ const AuditLogsSettings = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Activities</SelectItem>
-                <SelectItem value="user_management">User Management</SelectItem>
-                <SelectItem value="data_access">Data Access</SelectItem>
+                <SelectItem value="record_changes">Record Changes</SelectItem>
                 <SelectItem value="authentication">Authentication</SelectItem>
+                <SelectItem value="user_management">User Management</SelectItem>
                 <SelectItem value="export">Data Export</SelectItem>
               </SelectContent>
             </Select>
@@ -221,52 +351,83 @@ const AuditLogsSettings = () => {
                   <TableRow>
                     <TableHead>Timestamp</TableHead>
                     <TableHead>Action</TableHead>
-                    <TableHead>Resource</TableHead>
-                    <TableHead>User ID</TableHead>
-                    <TableHead>IP Address</TableHead>
+                    <TableHead>Module/Resource</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Changes</TableHead>
                     <TableHead>Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredLogs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="font-mono text-sm">
-                        {format(new Date(log.created_at), 'MMM dd, HH:mm:ss')}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getActionBadgeVariant(log.action)} className="flex items-center gap-1 w-fit">
-                          {getActionIcon(log.action)}
-                          {log.action}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-medium">{log.resource_type}</span>
-                        {log.resource_id && (
-                          <span className="text-muted-foreground text-sm block">
-                            ID: {log.resource_id.substring(0, 8)}...
+                  {filteredLogs.map((log) => {
+                    const isAuthLog = log.action.includes('SESSION_') || log.action.includes('LOGIN') || log.action.includes('LOGOUT');
+                    const userName = log.user_id ? (userNames[log.user_id] || `User ${log.user_id.substring(0, 8)}...`) : 'System';
+                    
+                    return (
+                      <TableRow key={log.id}>
+                        <TableCell className="font-mono text-sm">
+                          {format(new Date(log.created_at), 'MMM dd, HH:mm:ss')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getActionBadgeVariant(log.action)} className="flex items-center gap-1 w-fit">
+                            {getActionIcon(log.action)}
+                            {getReadableAction(log.action)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-medium">
+                            {log.details?.module || getReadableResourceType(log.resource_type)}
                           </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {log.user_id ? log.user_id.substring(0, 8) + '...' : 'System'}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {log.ip_address || 'N/A'}
-                      </TableCell>
-                      <TableCell className="max-w-xs">
-                        {log.details && (
-                          <details className="cursor-pointer">
-                            <summary className="text-sm text-muted-foreground hover:text-foreground">
-                              View details
-                            </summary>
-                            <pre className="text-xs mt-2 p-2 bg-muted rounded whitespace-pre-wrap">
-                              {JSON.stringify(log.details, null, 2)}
-                            </pre>
-                          </details>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          {log.resource_id && !isAuthLog && (
+                            <span className="text-muted-foreground text-sm block">
+                              Record: {log.resource_id.substring(0, 8)}...
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <span className="font-medium">{userName}</span>
+                            {isAuthLog && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {format(new Date(log.created_at), 'MMM dd, yyyy')}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="max-w-xs">
+                          {!isAuthLog && log.details?.field_changes && Object.keys(log.details.field_changes).length > 0 ? (
+                            <div className="space-y-1">
+                              {Object.entries(log.details.field_changes).slice(0, 3).map(([field, change]: [string, any]) => (
+                                <div key={field} className="text-xs">
+                                  <span className="font-medium">{field}:</span>
+                                  <span className="text-muted-foreground"> {String(change.old || 'null')} → </span>
+                                  <span className="text-primary">{String(change.new || 'null')}</span>
+                                </div>
+                              ))}
+                              {Object.keys(log.details.field_changes).length > 3 && (
+                                <span className="text-xs text-muted-foreground">
+                                  +{Object.keys(log.details.field_changes).length - 3} more...
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-xs">
+                          {log.details && (
+                            <details className="cursor-pointer">
+                              <summary className="text-sm text-muted-foreground hover:text-foreground">
+                                View details
+                              </summary>
+                              <pre className="text-xs mt-2 p-2 bg-muted rounded whitespace-pre-wrap">
+                                {JSON.stringify(log.details, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
               
@@ -304,9 +465,9 @@ const AuditLogsSettings = () => {
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
               <div className="text-2xl font-bold">
-                {logs.filter(log => log.action.includes('DATA')).length}
+                {logs.filter(log => ['CREATE', 'UPDATE', 'DELETE', 'BULK_CREATE', 'BULK_UPDATE', 'BULK_DELETE'].includes(log.action)).length}
               </div>
-              <div className="text-sm text-muted-foreground">Data Access</div>
+              <div className="text-sm text-muted-foreground">Record Changes</div>
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
               <div className="text-2xl font-bold">

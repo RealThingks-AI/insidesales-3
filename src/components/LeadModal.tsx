@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useCRUDAudit } from "@/hooks/useCRUDAudit";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -87,6 +88,7 @@ const leadStatuses = [
 
 export const LeadModal = ({ open, onOpenChange, lead, onSuccess }: LeadModalProps) => {
   const { toast } = useToast();
+  const { logCreate, logUpdate } = useCRUDAudit();
   const [loading, setLoading] = useState(false);
 
   const form = useForm<LeadFormData>({
@@ -175,15 +177,20 @@ export const LeadModal = ({ open, onOpenChange, lead, onSuccess }: LeadModalProp
 
       if (lead) {
         // Update existing lead
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('leads')
           .update({
             ...leadData,
             modified_time: new Date().toISOString(),
           })
-          .eq('id', lead.id);
+          .eq('id', lead.id)
+          .select()
+          .single();
 
         if (error) throw error;
+
+        // Log update operation
+        await logUpdate('leads', lead.id, leadData, lead);
 
         toast({
           title: "Success",
@@ -191,11 +198,16 @@ export const LeadModal = ({ open, onOpenChange, lead, onSuccess }: LeadModalProp
         });
       } else {
         // Create new lead
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('leads')
-          .insert(leadData);
+          .insert(leadData)
+          .select()
+          .single();
 
         if (error) throw error;
+
+        // Log create operation
+        await logCreate('leads', data.id, leadData);
 
         toast({
           title: "Success",

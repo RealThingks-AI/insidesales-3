@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useCRUDAudit } from "@/hooks/useCRUDAudit";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -74,6 +75,7 @@ const regions = [
 
 export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: ContactModalProps) => {
   const { toast } = useToast();
+  const { logCreate, logUpdate } = useCRUDAudit();
   const [loading, setLoading] = useState(false);
 
   const form = useForm<ContactFormData>({
@@ -157,26 +159,36 @@ export const ContactModal = ({ open, onOpenChange, contact, onSuccess }: Contact
       };
 
       if (contact) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('contacts')
           .update({
             ...contactData,
             modified_time: new Date().toISOString(),
           })
-          .eq('id', contact.id);
+          .eq('id', contact.id)
+          .select()
+          .single();
 
         if (error) throw error;
+
+        // Log update operation
+        await logUpdate('contacts', contact.id, contactData, contact);
 
         toast({
           title: "Success",
           description: "Contact updated successfully",
         });
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('contacts')
-          .insert(contactData);
+          .insert(contactData)
+          .select()
+          .single();
 
         if (error) throw error;
+
+        // Log create operation
+        await logCreate('contacts', data.id, contactData);
 
         toast({
           title: "Success",
