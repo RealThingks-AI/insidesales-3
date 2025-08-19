@@ -149,7 +149,7 @@ const AuditLogsSettings = () => {
     setFilteredLogs(filtered);
   };
 
-  // Deduplicate authentication events to reduce noise - keep only significant events per user per day
+  // Deduplicate authentication events - show only first/last login per day, max 5 entries per user per day
   const deduplicateAuthLogs = (authLogs: AuditLog[]) => {
     if (authLogs.length === 0) return authLogs;
 
@@ -158,8 +158,9 @@ const AuditLogsSettings = () => {
     );
 
     const uniqueLogs: AuditLog[] = [];
-    const userDailyActions = new Map<string, Set<string>>();
+    const userDailyLogs = new Map<string, AuditLog[]>();
 
+    // Group logs by user and day
     for (const log of sortedLogs) {
       const userId = log.user_id || 'system';
       const isAuthAction = log.action.includes('LOGIN') || log.action.includes('LOGOUT') || log.action.includes('SESSION_');
@@ -170,41 +171,68 @@ const AuditLogsSettings = () => {
         continue;
       }
 
-      // Create a daily key for each user
+      // Skip SESSION_ events as they are noise
+      if (log.action.includes('SESSION_')) {
+        continue;
+      }
+
       const logDate = format(new Date(log.created_at), 'yyyy-MM-dd');
       const dailyKey = `${userId}-${logDate}`;
       
-      if (!userDailyActions.has(dailyKey)) {
-        userDailyActions.set(dailyKey, new Set());
+      if (!userDailyLogs.has(dailyKey)) {
+        userDailyLogs.set(dailyKey, []);
       }
       
-      const userActionsToday = userDailyActions.get(dailyKey)!;
-      
-      // Only keep significant auth events per user per day:
-      // - First LOGIN of the day
-      // - First LOGOUT of the day  
-      // - Password reset events
-      // - Skip SESSION_ events as they are noise
-      if (log.action.includes('SESSION_')) {
-        continue; // Skip all session events as they're noise
-      }
-      
-      if (log.action.includes('PASSWORD') || log.action.includes('RESET')) {
-        uniqueLogs.push(log);
-        userActionsToday.add(log.action);
-        continue;
-      }
-      
-      // For LOGIN/LOGOUT, only keep first occurrence per day
-      const actionType = log.action.includes('LOGIN') ? 'LOGIN' : 'LOGOUT';
-      
-      if (!userActionsToday.has(actionType)) {
-        userActionsToday.add(actionType);
-        uniqueLogs.push(log);
-      }
+      userDailyLogs.get(dailyKey)!.push(log);
     }
 
-    return uniqueLogs;
+    // Process each user's daily logs
+    for (const [dailyKey, dailyLogs] of userDailyLogs.entries()) {
+      // Sort by timestamp (newest first)
+      dailyLogs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      const importantLogs: AuditLog[] = [];
+      const loginLogs = dailyLogs.filter(log => log.action.includes('LOGIN'));
+      const logoutLogs = dailyLogs.filter(log => log.action.includes('LOGOUT'));
+      const otherLogs = dailyLogs.filter(log => 
+        log.action.includes('PASSWORD') || 
+        log.action.includes('RESET') || 
+        log.action.includes('ACTIVATE') ||
+        log.action.includes('DEACTIVATE')
+      );
+
+      // Add first and last login of the day
+      if (loginLogs.length > 0) {
+        // First login (chronologically earliest)
+        const firstLogin = loginLogs[loginLogs.length - 1];
+        importantLogs.push(firstLogin);
+        
+        // Last login (chronologically latest) - only if different from first
+        if (loginLogs.length > 1) {
+          const lastLogin = loginLogs[0];
+          if (lastLogin.id !== firstLogin.id) {
+            importantLogs.push(lastLogin);
+          }
+        }
+      }
+
+      // Add first logout of the day if it exists
+      if (logoutLogs.length > 0) {
+        importantLogs.push(logoutLogs[logoutLogs.length - 1]);
+      }
+
+      // Add important security events (password resets, etc.)
+      importantLogs.push(...otherLogs);
+
+      // Limit to maximum 5 entries per user per day
+      const selectedLogs = importantLogs
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 5);
+
+      uniqueLogs.push(...selectedLogs);
+    }
+
+    return uniqueLogs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   };
 
   const exportAuditTrail = async () => {
