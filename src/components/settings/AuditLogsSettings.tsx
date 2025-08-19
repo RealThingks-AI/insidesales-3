@@ -149,7 +149,7 @@ const AuditLogsSettings = () => {
     setFilteredLogs(filtered);
   };
 
-  // Deduplicate consecutive authentication events to reduce noise
+  // Deduplicate authentication events to reduce noise - keep only significant events per user per day
   const deduplicateAuthLogs = (authLogs: AuditLog[]) => {
     if (authLogs.length === 0) return authLogs;
 
@@ -158,7 +158,7 @@ const AuditLogsSettings = () => {
     );
 
     const uniqueLogs: AuditLog[] = [];
-    const userLastActions = new Map<string, { action: string; timestamp: number }>();
+    const userDailyActions = new Map<string, Set<string>>();
 
     for (const log of sortedLogs) {
       const userId = log.user_id || 'system';
@@ -170,27 +170,38 @@ const AuditLogsSettings = () => {
         continue;
       }
 
-      const currentTimestamp = new Date(log.created_at).getTime();
-      const lastUserAction = userLastActions.get(userId);
-
-      // Include if it's the first action for this user
-      if (!lastUserAction) {
-        userLastActions.set(userId, { action: log.action, timestamp: currentTimestamp });
+      // Create a daily key for each user
+      const logDate = format(new Date(log.created_at), 'yyyy-MM-dd');
+      const dailyKey = `${userId}-${logDate}`;
+      
+      if (!userDailyActions.has(dailyKey)) {
+        userDailyActions.set(dailyKey, new Set());
+      }
+      
+      const userActionsToday = userDailyActions.get(dailyKey)!;
+      
+      // Only keep significant auth events per user per day:
+      // - First LOGIN of the day
+      // - First LOGOUT of the day  
+      // - Password reset events
+      // - Skip SESSION_ events as they are noise
+      if (log.action.includes('SESSION_')) {
+        continue; // Skip all session events as they're noise
+      }
+      
+      if (log.action.includes('PASSWORD') || log.action.includes('RESET')) {
         uniqueLogs.push(log);
+        userActionsToday.add(log.action);
         continue;
       }
-
-      // Skip if it's the same action within 5 minutes (to reduce noise)
-      const timeDiff = Math.abs(currentTimestamp - lastUserAction.timestamp);
-      const fiveMinutes = 5 * 60 * 1000;
       
-      if (log.action === lastUserAction.action && timeDiff < fiveMinutes) {
-        continue; // Skip this duplicate
+      // For LOGIN/LOGOUT, only keep first occurrence per day
+      const actionType = log.action.includes('LOGIN') ? 'LOGIN' : 'LOGOUT';
+      
+      if (!userActionsToday.has(actionType)) {
+        userActionsToday.add(actionType);
+        uniqueLogs.push(log);
       }
-
-      // Include significant action changes or time gaps
-      userLastActions.set(userId, { action: log.action, timestamp: currentTimestamp });
-      uniqueLogs.push(log);
     }
 
     return uniqueLogs;
@@ -384,14 +395,7 @@ const AuditLogsSettings = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          <div>
-                            <span className="font-medium">{userName}</span>
-                            {isAuthLog && (
-                              <div className="text-xs text-muted-foreground mt-1">
-                                {format(new Date(log.created_at), 'MMM dd, yyyy')}
-                              </div>
-                            )}
-                          </div>
+                          <span className="font-medium">{userName}</span>
                         </TableCell>
                         <TableCell className="max-w-xs">
                           {!isAuthLog && log.details?.field_changes && Object.keys(log.details.field_changes).length > 0 ? (
