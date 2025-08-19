@@ -28,10 +28,12 @@ const AuditLogsSettings = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionFilter, setActionFilter] = useState('all');
+  const [userNames, setUserNames] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   useEffect(() => {
     fetchAuditLogs();
+    fetchUserNames();
   }, []);
 
   useEffect(() => {
@@ -74,6 +76,16 @@ const AuditLogsSettings = () => {
     }
   };
 
+  const fetchUserNames = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-user-display-names');
+      if (error) throw error;
+      setUserNames(data?.userNames || {});
+    } catch (error) {
+      console.error('Error fetching user names:', error);
+    }
+  };
+
   const filterLogs = () => {
     let filtered = logs;
 
@@ -97,14 +109,8 @@ const AuditLogsSettings = () => {
                    log.action.includes('ROLE_') ||
                    log.resource_type === 'user_roles' ||
                    log.resource_type === 'profiles';
-          case 'data_access':
-            return log.action.includes('DATA_ACCESS') || 
-                   log.action.includes('SENSITIVE_DATA_ACCESS') ||
-                   log.action.includes('SELECT') ||
-                   log.action.includes('INSERT') ||
-                   log.action.includes('UPDATE') ||
-                   log.action.includes('DELETE') ||
-                   ['CREATE', 'UPDATE', 'DELETE', 'BULK_CREATE', 'BULK_UPDATE', 'BULK_DELETE'].includes(log.action) ||
+          case 'record_changes':
+            return ['CREATE', 'UPDATE', 'DELETE', 'BULK_CREATE', 'BULK_UPDATE', 'BULK_DELETE'].includes(log.action) ||
                    ['contacts', 'deals', 'leads'].includes(log.resource_type);
           case 'authentication':
             return log.action.includes('SESSION_') || 
@@ -259,9 +265,9 @@ const AuditLogsSettings = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Activities</SelectItem>
-                <SelectItem value="user_management">User Management</SelectItem>
-                <SelectItem value="data_access">Data Access</SelectItem>
+                <SelectItem value="record_changes">Record Changes</SelectItem>
                 <SelectItem value="authentication">Authentication</SelectItem>
+                <SelectItem value="user_management">User Management</SelectItem>
                 <SelectItem value="export">Data Export</SelectItem>
               </SelectContent>
             </Select>
@@ -278,52 +284,86 @@ const AuditLogsSettings = () => {
                   <TableRow>
                     <TableHead>Timestamp</TableHead>
                     <TableHead>Action</TableHead>
-                    <TableHead>Resource</TableHead>
-                    <TableHead>User ID</TableHead>
-                    <TableHead>IP Address</TableHead>
+                    <TableHead>Module/Resource</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Changes</TableHead>
                     <TableHead>Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredLogs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="font-mono text-sm">
-                        {format(new Date(log.created_at), 'MMM dd, HH:mm:ss')}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getActionBadgeVariant(log.action)} className="flex items-center gap-1 w-fit">
-                          {getActionIcon(log.action)}
-                          {getReadableAction(log.action)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-medium">{getReadableResourceType(log.resource_type)}</span>
-                        {log.resource_id && (
-                          <span className="text-muted-foreground text-sm block">
-                            ID: {log.resource_id.substring(0, 8)}...
+                  {filteredLogs.map((log) => {
+                    const isAuthLog = log.action.includes('SESSION_') || log.action.includes('LOGIN') || log.action.includes('LOGOUT');
+                    const userName = log.user_id ? (userNames[log.user_id] || `User ${log.user_id.substring(0, 8)}...`) : 'System';
+                    
+                    return (
+                      <TableRow key={log.id}>
+                        <TableCell className="font-mono text-sm">
+                          {format(new Date(log.created_at), 'MMM dd, HH:mm:ss')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={getActionBadgeVariant(log.action)} className="flex items-center gap-1 w-fit">
+                            {getActionIcon(log.action)}
+                            {getReadableAction(log.action)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-medium">
+                            {log.details?.module || getReadableResourceType(log.resource_type)}
                           </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {log.user_id ? log.user_id.substring(0, 8) + '...' : 'System'}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {log.ip_address || 'N/A'}
-                      </TableCell>
-                      <TableCell className="max-w-xs">
-                        {log.details && (
-                          <details className="cursor-pointer">
-                            <summary className="text-sm text-muted-foreground hover:text-foreground">
-                              View details
-                            </summary>
-                            <pre className="text-xs mt-2 p-2 bg-muted rounded whitespace-pre-wrap">
-                              {JSON.stringify(log.details, null, 2)}
-                            </pre>
-                          </details>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          {log.resource_id && !isAuthLog && (
+                            <span className="text-muted-foreground text-sm block">
+                              Record: {log.resource_id.substring(0, 8)}...
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-medium">{userName}</span>
+                          {isAuthLog && (
+                            <span className="text-muted-foreground text-sm block">
+                              {format(new Date(log.created_at), 'MMM dd, yyyy HH:mm')}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-xs">
+                          {log.details?.field_changes && Object.keys(log.details.field_changes).length > 0 ? (
+                            <div className="space-y-1">
+                              {Object.entries(log.details.field_changes).slice(0, 3).map(([field, change]: [string, any]) => (
+                                <div key={field} className="text-xs">
+                                  <span className="font-medium">{field}:</span>
+                                  <span className="text-muted-foreground"> {String(change.old || 'null')} → </span>
+                                  <span className="text-primary">{String(change.new || 'null')}</span>
+                                </div>
+                              ))}
+                              {Object.keys(log.details.field_changes).length > 3 && (
+                                <span className="text-xs text-muted-foreground">
+                                  +{Object.keys(log.details.field_changes).length - 3} more...
+                                </span>
+                              )}
+                            </div>
+                          ) : isAuthLog ? (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">No field changes</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-xs">
+                          {!isAuthLog && log.details && (
+                            <details className="cursor-pointer">
+                              <summary className="text-sm text-muted-foreground hover:text-foreground">
+                                View details
+                              </summary>
+                              <pre className="text-xs mt-2 p-2 bg-muted rounded whitespace-pre-wrap">
+                                {JSON.stringify(log.details, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                          {isAuthLog && (
+                            <span className="text-sm">{getReadableAction(log.action)}</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
               
@@ -363,7 +403,7 @@ const AuditLogsSettings = () => {
               <div className="text-2xl font-bold">
                 {logs.filter(log => ['CREATE', 'UPDATE', 'DELETE', 'BULK_CREATE', 'BULK_UPDATE', 'BULK_DELETE'].includes(log.action)).length}
               </div>
-              <div className="text-sm text-muted-foreground">CRUD Operations</div>
+              <div className="text-sm text-muted-foreground">Record Changes</div>
             </div>
             <div className="text-center p-4 bg-muted rounded-lg">
               <div className="text-2xl font-bold">
