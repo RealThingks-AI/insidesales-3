@@ -33,8 +33,13 @@ const AuditLogsSettings = () => {
 
   useEffect(() => {
     fetchAuditLogs();
-    fetchUserNames();
   }, []);
+
+  useEffect(() => {
+    if (logs.length > 0) {
+      fetchUserNames();
+    }
+  }, [logs]);
 
   useEffect(() => {
     filterLogs();
@@ -78,9 +83,19 @@ const AuditLogsSettings = () => {
 
   const fetchUserNames = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('fetch-user-display-names');
+      // Get all unique user IDs from logs
+      const uniqueUserIds = Array.from(new Set(
+        logs.map(log => log.user_id).filter(Boolean)
+      ));
+
+      if (uniqueUserIds.length === 0) return;
+
+      const { data, error } = await supabase.functions.invoke('fetch-user-display-names', {
+        body: { userIds: uniqueUserIds }
+      });
+      
       if (error) throw error;
-      setUserNames(data?.userNames || {});
+      setUserNames(data?.userDisplayNames || {});
     } catch (error) {
       console.error('Error fetching user names:', error);
     }
@@ -136,55 +151,49 @@ const AuditLogsSettings = () => {
 
   // Deduplicate consecutive authentication events to reduce noise
   const deduplicateAuthLogs = (authLogs: AuditLog[]) => {
-    const uniqueLogs: AuditLog[] = [];
-    const userSessions: Record<string, { lastAction: string; lastTime: string }> = {};
+    if (authLogs.length === 0) return authLogs;
 
-    // Sort by timestamp to ensure proper ordering
     const sortedLogs = [...authLogs].sort((a, b) => 
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
+
+    const uniqueLogs: AuditLog[] = [];
+    const userLastActions = new Map<string, { action: string; timestamp: number }>();
 
     for (const log of sortedLogs) {
       const userId = log.user_id || 'system';
       const isAuthAction = log.action.includes('LOGIN') || log.action.includes('LOGOUT') || log.action.includes('SESSION_');
       
+      // Always include non-auth actions
       if (!isAuthAction) {
         uniqueLogs.push(log);
         continue;
       }
 
-      const userSession = userSessions[userId];
-      const currentAction = log.action;
-      const currentTime = log.created_at;
+      const currentTimestamp = new Date(log.created_at).getTime();
+      const lastUserAction = userLastActions.get(userId);
 
-      // Always include first event for a user
-      if (!userSession) {
-        userSessions[userId] = { lastAction: currentAction, lastTime: currentTime };
+      // Include if it's the first action for this user
+      if (!lastUserAction) {
+        userLastActions.set(userId, { action: log.action, timestamp: currentTimestamp });
         uniqueLogs.push(log);
         continue;
       }
 
-      // Include if action is different from last (login -> logout or vice versa)
-      const isLoginAction = currentAction.includes('LOGIN');
-      const wasLastLogin = userSession.lastAction.includes('LOGIN');
+      // Skip if it's the same action within 5 minutes (to reduce noise)
+      const timeDiff = Math.abs(currentTimestamp - lastUserAction.timestamp);
+      const fiveMinutes = 5 * 60 * 1000;
       
-      if (isLoginAction !== wasLastLogin) {
-        userSessions[userId] = { lastAction: currentAction, lastTime: currentTime };
-        uniqueLogs.push(log);
-        continue;
+      if (log.action === lastUserAction.action && timeDiff < fiveMinutes) {
+        continue; // Skip this duplicate
       }
 
-      // Include if significant time gap (more than 1 hour)
-      const timeDiff = new Date(currentTime).getTime() - new Date(userSession.lastTime).getTime();
-      const oneHour = 60 * 60 * 1000;
-      
-      if (timeDiff > oneHour) {
-        userSessions[userId] = { lastAction: currentAction, lastTime: currentTime };
-        uniqueLogs.push(log);
-      }
+      // Include significant action changes or time gaps
+      userLastActions.set(userId, { action: log.action, timestamp: currentTimestamp });
+      uniqueLogs.push(log);
     }
 
-    return uniqueLogs.reverse(); // Return in descending order
+    return uniqueLogs;
   };
 
   const exportAuditTrail = async () => {
