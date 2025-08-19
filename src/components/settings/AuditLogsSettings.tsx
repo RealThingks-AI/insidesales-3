@@ -126,7 +126,65 @@ const AuditLogsSettings = () => {
       });
     }
 
+    // Special filtering for authentication logs to remove noise
+    if (actionFilter === 'authentication') {
+      filtered = deduplicateAuthLogs(filtered);
+    }
+
     setFilteredLogs(filtered);
+  };
+
+  // Deduplicate consecutive authentication events to reduce noise
+  const deduplicateAuthLogs = (authLogs: AuditLog[]) => {
+    const uniqueLogs: AuditLog[] = [];
+    const userSessions: Record<string, { lastAction: string; lastTime: string }> = {};
+
+    // Sort by timestamp to ensure proper ordering
+    const sortedLogs = [...authLogs].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+    for (const log of sortedLogs) {
+      const userId = log.user_id || 'system';
+      const isAuthAction = log.action.includes('LOGIN') || log.action.includes('LOGOUT') || log.action.includes('SESSION_');
+      
+      if (!isAuthAction) {
+        uniqueLogs.push(log);
+        continue;
+      }
+
+      const userSession = userSessions[userId];
+      const currentAction = log.action;
+      const currentTime = log.created_at;
+
+      // Always include first event for a user
+      if (!userSession) {
+        userSessions[userId] = { lastAction: currentAction, lastTime: currentTime };
+        uniqueLogs.push(log);
+        continue;
+      }
+
+      // Include if action is different from last (login -> logout or vice versa)
+      const isLoginAction = currentAction.includes('LOGIN');
+      const wasLastLogin = userSession.lastAction.includes('LOGIN');
+      
+      if (isLoginAction !== wasLastLogin) {
+        userSessions[userId] = { lastAction: currentAction, lastTime: currentTime };
+        uniqueLogs.push(log);
+        continue;
+      }
+
+      // Include if significant time gap (more than 1 hour)
+      const timeDiff = new Date(currentTime).getTime() - new Date(userSession.lastTime).getTime();
+      const oneHour = 60 * 60 * 1000;
+      
+      if (timeDiff > oneHour) {
+        userSessions[userId] = { lastAction: currentAction, lastTime: currentTime };
+        uniqueLogs.push(log);
+      }
+    }
+
+    return uniqueLogs.reverse(); // Return in descending order
   };
 
   const exportAuditTrail = async () => {
@@ -317,15 +375,17 @@ const AuditLogsSettings = () => {
                           )}
                         </TableCell>
                         <TableCell>
-                          <span className="font-medium">{userName}</span>
-                          {isAuthLog && (
-                            <span className="text-muted-foreground text-sm block">
-                              {format(new Date(log.created_at), 'MMM dd, yyyy HH:mm')}
-                            </span>
-                          )}
+                          <div>
+                            <span className="font-medium">{userName}</span>
+                            {isAuthLog && (
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {format(new Date(log.created_at), 'MMM dd, yyyy')}
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="max-w-xs">
-                          {log.details?.field_changes && Object.keys(log.details.field_changes).length > 0 ? (
+                          {!isAuthLog && log.details?.field_changes && Object.keys(log.details.field_changes).length > 0 ? (
                             <div className="space-y-1">
                               {Object.entries(log.details.field_changes).slice(0, 3).map(([field, change]: [string, any]) => (
                                 <div key={field} className="text-xs">
@@ -340,14 +400,12 @@ const AuditLogsSettings = () => {
                                 </span>
                               )}
                             </div>
-                          ) : isAuthLog ? (
-                            <span className="text-sm text-muted-foreground">-</span>
                           ) : (
-                            <span className="text-sm text-muted-foreground">No field changes</span>
+                            <span className="text-sm text-muted-foreground">-</span>
                           )}
                         </TableCell>
                         <TableCell className="max-w-xs">
-                          {!isAuthLog && log.details && (
+                          {log.details && (
                             <details className="cursor-pointer">
                               <summary className="text-sm text-muted-foreground hover:text-foreground">
                                 View details
@@ -356,9 +414,6 @@ const AuditLogsSettings = () => {
                                 {JSON.stringify(log.details, null, 2)}
                               </pre>
                             </details>
-                          )}
-                          {isAuthLog && (
-                            <span className="text-sm">{getReadableAction(log.action)}</span>
                           )}
                         </TableCell>
                       </TableRow>
