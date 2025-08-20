@@ -104,50 +104,6 @@ export type Database = {
         }
         Relationships: []
       }
-      deal_action_items: {
-        Row: {
-          assigned_to: string | null
-          created_at: string
-          created_by: string | null
-          deal_id: string
-          due_date: string | null
-          id: string
-          next_action: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          assigned_to?: string | null
-          created_at?: string
-          created_by?: string | null
-          deal_id: string
-          due_date?: string | null
-          id?: string
-          next_action: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          assigned_to?: string | null
-          created_at?: string
-          created_by?: string | null
-          deal_id?: string
-          due_date?: string | null
-          id?: string
-          next_action?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "deal_action_items_deal_id_fkey"
-            columns: ["deal_id"]
-            isOneToOne: false
-            referencedRelation: "deals"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       deals: {
         Row: {
           action_items: string | null

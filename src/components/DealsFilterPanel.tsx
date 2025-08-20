@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Filter, X } from "lucide-react";
 import { format } from "date-fns";
-import { DealStage, DEAL_STAGES, Deal } from "@/types/deal";
+import { DealStage, DEAL_STAGES } from "@/types/deal";
 import { cn } from "@/lib/utils";
 
 export interface FilterState {
@@ -28,7 +27,9 @@ export interface FilterState {
 }
 
 interface DealsFilterPanelProps {
-  onFilteredDealsChange: (deals: Deal[]) => void;
+  filters: FilterState;
+  onFiltersChange: (filters: FilterState) => void;
+  children: React.ReactNode;
 }
 
 const initialFilters: FilterState = {
@@ -43,26 +44,27 @@ const initialFilters: FilterState = {
   customerName: "",
 };
 
-export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProps) => {
-  const [filters, setFilters] = useState<FilterState>(initialFilters);
+export const DealsFilterPanel = ({ filters, onFiltersChange, children }: DealsFilterPanelProps) => {
+  const [localFilters, setLocalFilters] = useState<FilterState>(filters);
   const [isOpen, setIsOpen] = useState(false);
 
-  const updateFilter = <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
+  useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters]);
 
   const applyFilters = () => {
-    // For now, just close the panel - actual filtering logic would go here
-    // In a real implementation, this would filter the deals based on the current filters
+    onFiltersChange(localFilters);
     setIsOpen(false);
-    console.log('Applying filters:', filters);
-    // This would normally call onFilteredDealsChange with filtered results
   };
 
   const clearAllFilters = () => {
     const clearedFilters = { ...initialFilters };
-    setFilters(clearedFilters);
-    console.log('Cleared all filters');
+    setLocalFilters(clearedFilters);
+    onFiltersChange(clearedFilters);
+  };
+
+  const updateFilter = <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
+    setLocalFilters(prev => ({ ...prev, [key]: value }));
   };
 
   const getActiveFiltersCount = () => {
@@ -70,7 +72,7 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
     if (filters.stage !== "all") count++;
     if (filters.region) count++;
     if (filters.leadOwner) count++;
-    if (filters.priority !== "all") count++;
+    if (filters.priority) count++;
     if (filters.probability[0] > 0) count++;
     if (filters.expectedClosingDateStart || filters.expectedClosingDateEnd) count++;
     if (filters.dealName) count++;
@@ -85,21 +87,18 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Filter className="w-4 h-4" />
-          Filters
-          {activeFiltersCount > 0 && (
-            <span className="bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">
-              {activeFiltersCount}
-            </span>
-          )}
-        </Button>
+        {children}
       </SheetTrigger>
       <SheetContent side="right" className="w-[400px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Filter className="w-4 h-4" />
             Filter Deals
+            {activeFiltersCount > 0 && (
+              <span className="bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">
+                {activeFiltersCount}
+              </span>
+            )}
           </SheetTitle>
         </SheetHeader>
 
@@ -107,7 +106,7 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
           {/* Stage Filter */}
           <div className="space-y-2">
             <Label htmlFor="stage">Stage</Label>
-            <Select value={filters.stage} onValueChange={(value) => updateFilter("stage", value as DealStage | "all")}>
+            <Select value={localFilters.stage} onValueChange={(value) => updateFilter("stage", value as DealStage | "all")}>
               <SelectTrigger>
                 <SelectValue placeholder="Select stage" />
               </SelectTrigger>
@@ -128,7 +127,7 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
             <Input
               id="region"
               placeholder="Enter region..."
-              value={filters.region}
+              value={localFilters.region}
               onChange={(e) => updateFilter("region", e.target.value)}
             />
           </div>
@@ -139,7 +138,7 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
             <Input
               id="leadOwner"
               placeholder="Enter lead owner..."
-              value={filters.leadOwner}
+              value={localFilters.leadOwner}
               onChange={(e) => updateFilter("leadOwner", e.target.value)}
             />
           </div>
@@ -147,7 +146,7 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
           {/* Priority Filter */}
           <div className="space-y-2">
             <Label htmlFor="priority">Priority</Label>
-            <Select value={filters.priority} onValueChange={(value) => updateFilter("priority", value)}>
+            <Select value={localFilters.priority} onValueChange={(value) => updateFilter("priority", value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select priority" />
               </SelectTrigger>
@@ -164,16 +163,16 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
           <div className="space-y-2">
             <Label>Probability (minimum %)</Label>
             <div className="px-3">
-              <Slider
-                value={filters.probability}
-                onValueChange={(value) => updateFilter("probability", value as [number])}
-                max={100}
-                step={5}
-                className="w-full"
-              />
+          <Slider
+            value={localFilters.probability}
+            onValueChange={(value) => updateFilter("probability", value as [number])}
+            max={100}
+            step={5}
+            className="w-full"
+          />
               <div className="flex justify-between text-sm text-muted-foreground mt-1">
                 <span>0%</span>
-                <span className="font-medium">{filters.probability[0]}%</span>
+                <span className="font-medium">{localFilters.probability[0]}%</span>
                 <span>100%</span>
               </div>
             </div>
@@ -189,12 +188,12 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      !filters.expectedClosingDateStart && "text-muted-foreground"
+                      !localFilters.expectedClosingDateStart && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filters.expectedClosingDateStart ? (
-                      format(filters.expectedClosingDateStart, "PPP")
+                    {localFilters.expectedClosingDateStart ? (
+                      format(localFilters.expectedClosingDateStart, "PPP")
                     ) : (
                       <span>From date</span>
                     )}
@@ -203,7 +202,7 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={filters.expectedClosingDateStart}
+                    selected={localFilters.expectedClosingDateStart}
                     onSelect={(date) => updateFilter("expectedClosingDateStart", date)}
                     initialFocus
                     className="p-3 pointer-events-auto"
@@ -217,12 +216,12 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      !filters.expectedClosingDateEnd && "text-muted-foreground"
+                      !localFilters.expectedClosingDateEnd && "text-muted-foreground"
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filters.expectedClosingDateEnd ? (
-                      format(filters.expectedClosingDateEnd, "PPP")
+                    {localFilters.expectedClosingDateEnd ? (
+                      format(localFilters.expectedClosingDateEnd, "PPP")
                     ) : (
                       <span>To date</span>
                     )}
@@ -231,7 +230,7 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     mode="single"
-                    selected={filters.expectedClosingDateEnd}
+                    selected={localFilters.expectedClosingDateEnd}
                     onSelect={(date) => updateFilter("expectedClosingDateEnd", date)}
                     initialFocus
                     className="p-3 pointer-events-auto"
@@ -248,7 +247,7 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
               <Input
                 id="dealName"
                 placeholder="Search deal name..."
-                value={filters.dealName}
+                value={localFilters.dealName}
                 onChange={(e) => updateFilter("dealName", e.target.value)}
               />
             </div>
@@ -258,7 +257,7 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
               <Input
                 id="projectName"
                 placeholder="Search project name..."
-                value={filters.projectName}
+                value={localFilters.projectName}
                 onChange={(e) => updateFilter("projectName", e.target.value)}
               />
             </div>
@@ -268,7 +267,7 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
               <Input
                 id="leadName"
                 placeholder="Search lead name..."
-                value={filters.leadName}
+                value={localFilters.leadName}
                 onChange={(e) => updateFilter("leadName", e.target.value)}
               />
             </div>
@@ -278,7 +277,7 @@ export const DealsFilterPanel = ({ onFilteredDealsChange }: DealsFilterPanelProp
               <Input
                 id="customerName"
                 placeholder="Search customer name..."
-                value={filters.customerName}
+                value={localFilters.customerName}
                 onChange={(e) => updateFilter("customerName", e.target.value)}
               />
             </div>
