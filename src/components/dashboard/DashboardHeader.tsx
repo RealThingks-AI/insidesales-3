@@ -1,79 +1,62 @@
 
 import { Button } from "@/components/ui/button";
-import { LogOut, Plus } from "lucide-react";
+import { Plus, LayoutGrid, List } from "lucide-react";
+import { NotificationBell } from "@/components/NotificationBell";
 
 interface DashboardHeaderProps {
-  userEmail: string;
   activeView: 'kanban' | 'list';
   onViewChange: (view: 'kanban' | 'list') => void;
   onCreateDeal: () => void;
-  onSignOut: () => void;
+  onSignOut: () => Promise<void>;
 }
 
-export const DashboardHeader = ({
-  userEmail,
-  activeView,
-  onViewChange,
-  onCreateDeal,
-  onSignOut
+export const DashboardHeader = ({ 
+  activeView, 
+  onViewChange, 
+  onCreateDeal, 
+  onSignOut 
 }: DashboardHeaderProps) => {
   return (
-    <header className="sticky top-0 z-50 border-b bg-gradient-to-r from-primary to-primary/90 text-primary-foreground shadow-lg">
-      <div className="w-full px-6 py-4">
-        <div className="flex items-center justify-between w-full max-w-none">
-          {/* Left side - App title */}
-          <div className="flex-shrink-0">
-            <h1 className="text-2xl lg:text-3xl font-bold">RealThingks Deals</h1>
-          </div>
-          
-          {/* Right side - Controls */}
-          <div className="flex items-center gap-2 lg:gap-4 flex-shrink-0">
-            {/* View Toggle */}
-            <div className="bg-white/10 rounded-lg p-1 flex">
-              <Button
-                variant={activeView === 'kanban' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => onViewChange('kanban')}
-                className={activeView === 'kanban' ? 'bg-white text-primary font-medium px-3' : 'text-white hover:bg-white/20 px-3'}
-              >
-                Kanban
-              </Button>
-              <Button
-                variant={activeView === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => onViewChange('list')}
-                className={activeView === 'list' ? 'bg-white text-primary font-medium px-3' : 'text-white hover:bg-white/20 px-3'}
-              >
-                List
-              </Button>
-            </div>
-            
-            <Button 
-              onClick={onCreateDeal}
-              className="bg-white text-primary hover:bg-white/90 font-semibold transition-all hover:scale-105 whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Deal
-            </Button>
-            
-            {/* User Info with Sign Out */}
-            <div className="flex items-center gap-2 bg-white/10 rounded-lg px-3 py-2">
-              <div className="text-right">
-                <p className="text-primary-foreground/90 text-sm font-medium">
-                  {userEmail}
-                </p>
-              </div>
-              <Button 
-                onClick={onSignOut}
-                size="sm"
-                className="bg-destructive/90 text-destructive-foreground hover:bg-destructive border-0 font-medium transition-all hover:scale-105"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
+    <div className="flex items-center justify-between p-6 border-b bg-white shadow-sm">
+      <div className="flex items-center gap-4">
+        <h1 className="text-2xl font-bold text-gray-900">Deals Dashboard</h1>
+        <Button onClick={onCreateDeal} className="flex items-center gap-2">
+          <Plus className="w-4 h-4" />
+          New Deal
+        </Button>
       </div>
-    </header>
+      
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
+          <Button
+            variant={activeView === 'kanban' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => onViewChange('kanban')}
+            className="flex items-center gap-2"
+          >
+            <LayoutGrid className="w-4 h-4" />
+            Kanban
+          </Button>
+          <Button
+            variant={activeView === 'list' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => onViewChange('list')}
+            className="flex items-center gap-2"
+          >
+            <List className="w-4 h-4" />
+            List
+          </Button>
+        </div>
+        
+        {/* Notification Bell - Maximum visibility */}
+        <div className="flex items-center bg-yellow-100 rounded-full p-3 border-2 border-yellow-300 shadow-lg">
+          <NotificationBell />
+        </div>
+        
+        <Button variant="outline" onClick={onSignOut} className="ml-2">
+          Sign Out
+        </Button>
+      </div>
+    </div>
   );
 };

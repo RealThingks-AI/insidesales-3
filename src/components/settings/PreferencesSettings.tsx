@@ -1,50 +1,17 @@
 
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { Palette, Sun, Moon, Monitor } from "lucide-react";
+import { useThemePreferences } from "@/hooks/useThemePreferences";
 
 const PreferencesSettings = () => {
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem("theme") || "auto";
-  });
-  const { toast } = useToast();
-
-  const applyTheme = (newTheme: string) => {
-    const root = window.document.documentElement;
-    root.classList.remove("light", "dark");
-    
-    if (newTheme === "auto") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-      root.classList.add(systemTheme);
-    } else {
-      root.classList.add(newTheme);
-    }
-  };
-
-  useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
-
-  const handleThemeChange = (newTheme: string) => {
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    applyTheme(newTheme);
-    toast({
-      title: "Theme Updated",
-      description: `Theme changed to ${newTheme === "auto" ? "system default" : newTheme}.`,
-    });
-  };
+  const { theme, setTheme, loading } = useThemePreferences();
 
   const handleSavePreferences = () => {
-    localStorage.setItem("theme", theme);
-    toast({
-      title: "Preferences Saved",
-      description: "Your preferences have been saved successfully.",
-    });
+    // Theme is already saved automatically when changed, but we can show confirmation
+    // This button can be used for future additional preferences
   };
 
   const themeOptions = [
@@ -52,6 +19,21 @@ const PreferencesSettings = () => {
     { value: "dark", label: "Dark", icon: Moon },
     { value: "auto", label: "Auto", icon: Monitor },
   ];
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="animate-pulse space-y-4">
+              <div className="h-4 bg-muted rounded w-1/4"></div>
+              <div className="h-10 bg-muted rounded"></div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -65,7 +47,7 @@ const PreferencesSettings = () => {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="theme-select">Theme</Label>
-            <Select value={theme} onValueChange={handleThemeChange}>
+            <Select value={theme} onValueChange={setTheme}>
               <SelectTrigger id="theme-select">
                 <SelectValue placeholder="Select theme" />
               </SelectTrigger>

@@ -10,11 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Search, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { Search, Edit, Trash2, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, RefreshCw, ListTodo } from "lucide-react";
 import { LeadModal } from "./LeadModal";
 import { LeadColumnCustomizer, LeadColumnConfig } from "./LeadColumnCustomizer";
 import { LeadStatusFilter } from "./LeadStatusFilter";
 import { ConvertToDealModal } from "./ConvertToDealModal";
+import { LeadActionItemsModal } from "./LeadActionItemsModal";
+
 interface Lead {
   id: string;
   lead_name: string;
@@ -35,6 +37,7 @@ interface Lead {
   created_by?: string;
   modified_by?: string;
 }
+
 const defaultColumns: LeadColumnConfig[] = [{
   field: 'lead_name',
   label: 'Lead Name',
@@ -86,6 +89,7 @@ const defaultColumns: LeadColumnConfig[] = [{
   visible: false,
   order: 9
 }];
+
 interface LeadTableProps {
   showColumnCustomizer: boolean;
   setShowColumnCustomizer: (show: boolean) => void;
@@ -94,6 +98,7 @@ interface LeadTableProps {
   selectedLeads: string[];
   setSelectedLeads: React.Dispatch<React.SetStateAction<string[]>>;
 }
+
 export const LeadTable = ({
   showColumnCustomizer,
   setShowColumnCustomizer,
@@ -116,14 +121,18 @@ export const LeadTable = ({
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null);
   const [columns, setColumns] = useState(defaultColumns);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50); // Changed from 10 to 50
+  const [itemsPerPage, setItemsPerPage] = useState(50);
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [leadToConvert, setLeadToConvert] = useState<Lead | null>(null);
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [showActionItemsModal, setShowActionItemsModal] = useState(false);
+  const [selectedLeadForActions, setSelectedLeadForActions] = useState<Lead | null>(null);
+
   useEffect(() => {
     fetchLeads();
   }, []);
+
   useEffect(() => {
     let filtered = leads.filter(lead => lead.lead_name?.toLowerCase().includes(searchTerm.toLowerCase()) || lead.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) || lead.email?.toLowerCase().includes(searchTerm.toLowerCase()));
     if (statusFilter !== "all") {
@@ -142,6 +151,7 @@ export const LeadTable = ({
     setFilteredLeads(filtered);
     setCurrentPage(1);
   }, [leads, searchTerm, statusFilter, sortField, sortDirection]);
+
   const handleSort = (field: string) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -150,12 +160,14 @@ export const LeadTable = ({
       setSortDirection('asc');
     }
   };
+
   const getSortIcon = (field: string) => {
     if (sortField !== field) {
       return <ArrowUpDown className="w-4 h-4" />;
     }
     return sortDirection === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />;
   };
+
   const fetchLeads = async () => {
     try {
       setLoading(true);
@@ -177,6 +189,7 @@ export const LeadTable = ({
       setLoading(false);
     }
   };
+
   const handleDelete = async (id: string) => {
     try {
       // Find the lead first to log the deleted data
@@ -203,6 +216,7 @@ export const LeadTable = ({
       });
     }
   };
+
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       const pageLeads = getCurrentPageLeads().slice(0, 50);
@@ -211,6 +225,7 @@ export const LeadTable = ({
       setSelectedLeads([]);
     }
   };
+
   const handleSelectLead = (leadId: string, checked: boolean) => {
     if (checked) {
       setSelectedLeads(prev => [...prev, leadId]);
@@ -218,10 +233,12 @@ export const LeadTable = ({
       setSelectedLeads(prev => prev.filter(id => id !== leadId));
     }
   };
+
   const getCurrentPageLeads = () => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredLeads.slice(startIndex, startIndex + itemsPerPage);
   };
+
   const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
 
   // Memoize user IDs to prevent unnecessary re-fetches
@@ -233,12 +250,15 @@ export const LeadTable = ({
   const {
     displayNames
   } = useUserDisplayNames(createdByIds);
+
   const visibleColumns = columns.filter(col => col.visible);
   const pageLeads = getCurrentPageLeads();
+
   const handleConvertToDeal = (lead: Lead) => {
     setLeadToConvert(lead);
     setShowConvertModal(true);
   };
+
   const handleConvertSuccess = async () => {
     // Update the lead status to "Converted" immediately
     if (leadToConvert) {
@@ -264,6 +284,12 @@ export const LeadTable = ({
     fetchLeads();
     setLeadToConvert(null);
   };
+
+  const handleActionItems = (lead: Lead) => {
+    setSelectedLeadForActions(lead);
+    setShowActionItemsModal(true);
+  };
+
   return <div className="space-y-6">
       {/* Header and Actions */}
       <div className="flex items-center justify-between">
@@ -295,7 +321,6 @@ export const LeadTable = ({
               <TableHead>
                 <div className="flex items-center gap-2">
                   Actions
-                  
                 </div>
               </TableHead>
             </TableRow>
@@ -343,6 +368,10 @@ export const LeadTable = ({
                         <RefreshCw className="w-4 h-4 mr-1" />
                         Convert
                       </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleActionItems(lead)}>
+                        <ListTodo className="w-4 h-4 mr-1" />
+                        Action
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>)}
@@ -381,6 +410,12 @@ export const LeadTable = ({
       <LeadColumnCustomizer open={showColumnCustomizer} onOpenChange={setShowColumnCustomizer} columns={columns} onColumnsChange={setColumns} />
 
       <ConvertToDealModal open={showConvertModal} onOpenChange={setShowConvertModal} lead={leadToConvert} onSuccess={handleConvertSuccess} />
+
+      <LeadActionItemsModal 
+        open={showActionItemsModal} 
+        onOpenChange={setShowActionItemsModal} 
+        lead={selectedLeadForActions} 
+      />
 
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>

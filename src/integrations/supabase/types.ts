@@ -251,6 +251,50 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_action_items: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          lead_id: string
+          next_action: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          lead_id: string
+          next_action: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          lead_id?: string
+          next_action?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_action_items_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           company_name: string | null
@@ -314,6 +358,57 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          action_item_id: string | null
+          created_at: string
+          id: string
+          lead_id: string | null
+          message: string
+          notification_type: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_item_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          message: string
+          notification_type?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_item_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          message?: string
+          notification_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_action_item_id_fkey"
+            columns: ["action_item_id"]
+            isOneToOne: false
+            referencedRelation: "lead_action_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -335,6 +430,36 @@ export type Database = {
           full_name?: string | null
           id?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      saved_filters: {
+        Row: {
+          created_at: string
+          filter_type: string
+          filters: Json
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          filter_type?: string
+          filters: Json
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          filter_type?: string
+          filters?: Json
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -371,6 +496,30 @@ export type Database = {
           resource_type?: string
           user_agent?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          created_at: string | null
+          id: string
+          theme: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          theme?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          theme?: string | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }

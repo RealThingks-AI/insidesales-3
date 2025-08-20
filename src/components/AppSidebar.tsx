@@ -17,6 +17,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: Home },
@@ -74,13 +75,14 @@ export function AppSidebar({ isFixed = false, isOpen, onToggle }: AppSidebarProp
 
   return (
     <div 
-      className={`h-screen flex flex-col border-r border-sidebar-border bg-sidebar-background transition-all duration-300 ease-in-out ${
+      className={`h-screen flex flex-col border-r border-sidebar-border bg-sidebar-background transition-all duration-300 ease-in-out relative ${
         isFixed ? 'relative' : ''
       }`}
       style={{ 
         width: sidebarOpen ? '220px' : '60px',
         minWidth: sidebarOpen ? '220px' : '60px',
-        maxWidth: sidebarOpen ? '220px' : '60px'
+        maxWidth: sidebarOpen ? '220px' : '60px',
+        overflow: 'visible' // Allow content to overflow for dropdowns
       }}
     >
       {/* Header */}
@@ -97,6 +99,13 @@ export function AppSidebar({ isFixed = false, isOpen, onToggle }: AppSidebarProp
             </span>
           )}
         </div>
+        
+        {/* Notification Bell - Only show when sidebar is expanded */}
+        {sidebarOpen && (
+          <div className="ml-2">
+            <NotificationBell />
+          </div>
+        )}
       </div>
 
       {/* Menu Items */}
@@ -174,8 +183,9 @@ export function AppSidebar({ isFixed = false, isOpen, onToggle }: AppSidebarProp
         </nav>
       </div>
 
-        {/* Bottom Section - Pin Toggle & User & Sign Out */}
-      <div className="border-t border-sidebar-border p-4 space-y-3 relative">
+      {/* Bottom Section - Pin Toggle & User & Sign Out */}
+      <div className="border-t border-sidebar-border p-4 space-y-3 relative" style={{ overflow: 'visible', zIndex: 100 }}>
+
         {/* Pin Toggle Button - Always bottom-left aligned */}
         <div className="flex" style={{ justifyContent: sidebarOpen ? 'flex-start' : 'flex-start', paddingLeft: sidebarOpen ? '0px' : '6px' }}>
           <Tooltip>
