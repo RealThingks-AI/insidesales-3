@@ -35,8 +35,19 @@ export const ListView = ({
     deal: { id: string; deal_name: string } | null;
   }>({ open: false, deal: null });
 
-  // Use the import/export hook
-  const importExportHook = useDealsImportExport();
+  // Create a refresh function to pass to the import/export hook
+  const handleRefresh = () => {
+    console.log('Refreshing deals data...');
+    // This will trigger a refresh of the deals data
+    window.dispatchEvent(new CustomEvent('deals-data-updated', {
+      detail: { source: 'import-export-refresh' }
+    }));
+  };
+
+  // Use the import/export hook with proper options
+  const importExportHook = useDealsImportExport({
+    onRefresh: handleRefresh
+  });
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -93,7 +104,6 @@ export const ListView = ({
       {/* Filter Panel */}
       <div className="flex-shrink-0 border-b bg-background">
         <DealsFilterPanel 
-          deals={deals} 
           onFilteredDealsChange={setFilteredDeals}
         />
       </div>
@@ -102,13 +112,11 @@ export const ListView = ({
       {selectedDeals.length === 0 && (
         <div className="flex-shrink-0 bg-background border-b">
           <ImportExportBar
-            onImport={importExportHook.handleImport}
-            onExportAll={() => importExportHook.handleExportAll(filteredDeals)}
-            onExportSelected={() => importExportHook.handleExportSelected(filteredDeals, selectedDeals)}
-            onExportFiltered={() => importExportHook.handleExportFiltered(filteredDeals)}
-            selectedCount={selectedDeals.length}
-            totalCount={filteredDeals.length}
-            entityName="deals"
+            deals={filteredDeals}
+            onImport={onImportDeals}
+            onExport={() => importExportHook.handleExportAll(filteredDeals)}
+            selectedDeals={selectedDeals.length > 0 ? filteredDeals.filter(deal => selectedDeals.includes(deal.id)) : undefined}
+            onRefresh={handleRefresh}
           />
         </div>
       )}
