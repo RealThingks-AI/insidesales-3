@@ -1,67 +1,42 @@
-import React, { useState, useMemo } from "react";
+
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Edit, Trash2, Search, Filter, Download, Upload, Settings, List } from "lucide-react";
+import { Edit, Trash2, List } from "lucide-react";
 import { Deal } from "@/types/deal";
 import { format } from "date-fns";
-import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { ImportExportBar } from "@/components/ImportExportBar";
+import { DealsFilterPanel } from "@/components/DealsFilterPanel";
+import { BulkActionsBar } from "@/components/BulkActionsBar";
 import { useDealsImportExport } from "@/hooks/useDealsImportExport";
-import { ColumnCustomizer } from "@/components/ColumnCustomizer";
 import { DealActionItemsModal } from "@/components/DealActionItemsModal";
 
 interface ListViewProps {
   deals: Deal[];
   onDealClick: (deal: Deal) => void;
   onUpdateDeal: (dealId: string, updates: Partial<Deal>) => Promise<void>;
-  onDeleteDeals: (dealIds: string[]) => Promise<void>;
-  onImportDeals: (deals: any[]) => Promise<void>;
+  onDeleteDeals: (dealIds: string[]) => void;
+  onImportDeals: (deals: any[]) => void;
 }
 
-export const ListView: React.FC<ListViewProps> = ({
-  deals,
-  onDealClick,
-  onUpdateDeal,
-  onDeleteDeals,
-  onImportDeals,
-}) => {
-  const [searchTerm, setSearchTerm] = useState("");
+export const ListView = ({ 
+  deals, 
+  onDealClick, 
+  onUpdateDeal, 
+  onDeleteDeals, 
+  onImportDeals 
+}: ListViewProps) => {
   const [selectedDeals, setSelectedDeals] = useState<string[]>([]);
-  const [showBulkActions, setShowBulkActions] = useState(false);
-  const [showImportExport, setShowImportExport] = useState(false);
-  const [showColumnCustomizer, setShowColumnCustomizer] = useState(false);
-  const [actionItemsModalOpen, setActionItemsModalOpen] = useState(false);
-  const [selectedDealForActions, setSelectedDealForActions] = useState<Deal | null>(null);
+  const [filteredDeals, setFilteredDeals] = useState(deals);
+  const [actionItemsModal, setActionItemsModal] = useState<{
+    open: boolean;
+    deal: { id: string; deal_name: string } | null;
+  }>({ open: false, deal: null });
 
-  const [visibleColumns, setVisibleColumns] = useState({
-    project: true,
-    customer: true,
-    leadOwner: true,
-    stage: true,
-    priority: true,
-    value: true,
-    expectedClose: true,
-    actions: true,
-  });
-
-  const { exportToCSV, importFromCSV, isProcessing } = useDealsImportExport({
-    onImport: onImportDeals,
-    filename: 'deals'
-  });
-
-  const filteredDeals = useMemo(() => {
-    return deals.filter(deal => {
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        deal.project_name?.toLowerCase().includes(searchLower) ||
-        deal.customer_name?.toLowerCase().includes(searchLower) ||
-        deal.lead_owner?.toLowerCase().includes(searchLower) ||
-        deal.stage?.toLowerCase().includes(searchLower)
-      );
-    });
-  }, [deals, searchTerm]);
+  // Use the import/export hook
+  const importExportHook = useDealsImportExport();
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
@@ -79,269 +54,189 @@ export const ListView: React.FC<ListViewProps> = ({
     }
   };
 
-  const handleBulkDelete = async () => {
-    if (selectedDeals.length > 0) {
-      await onDeleteDeals(selectedDeals);
-      setSelectedDeals([]);
-      setShowBulkActions(false);
-    }
-  };
-
   const getStageColor = (stage: string) => {
-    const colors = {
+    const stageColors = {
       'Lead': 'bg-gray-100 text-gray-800',
       'Qualified': 'bg-blue-100 text-blue-800',
       'RFQ': 'bg-yellow-100 text-yellow-800',
       'Discussions': 'bg-purple-100 text-purple-800',
       'Offered': 'bg-orange-100 text-orange-800',
-      'Final': 'bg-green-100 text-green-800',
+      'Closed Won': 'bg-green-100 text-green-800',
+      'Closed Lost': 'bg-red-100 text-red-800',
     };
-    return colors[stage as keyof typeof colors] || 'bg-gray-100 text-gray-800';
+    return stageColors[stage as keyof typeof stageColors] || 'bg-gray-100 text-gray-800';
   };
 
-  const getPriorityColor = (priority: number) => {
-    if (priority === 1) return 'bg-red-100 text-red-800';
-    if (priority === 2) return 'bg-yellow-100 text-yellow-800';
-    if (priority === 3) return 'bg-green-100 text-green-800';
-    return 'bg-gray-100 text-gray-800';
-  };
-
-  const getPriorityLabel = (priority: number) => {
-    if (priority === 1) return 'Highest';
-    if (priority === 2) return 'High';
-    if (priority === 3) return 'Medium';
-    return 'Low';
-  };
-
-  const formatCurrency = (value: number | null) => {
-    if (!value) return '-';
+  const formatCurrency = (amount: number | null) => {
+    if (!amount) return 'N/A';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'EUR',
-    }).format(value);
+      currency: 'USD',
+      minimumFractionDigits: 0,
+    }).format(amount);
   };
 
-  const formatDate = (date: string | null) => {
-    if (!date) return '-';
-    return format(new Date(date), 'dd/MM/yyyy');
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
+    return format(new Date(dateString), 'MMM dd, yyyy');
   };
 
-  const handleActionItemsClick = (deal: Deal) => {
-    setSelectedDealForActions(deal);
-    setActionItemsModalOpen(true);
+  const handleActionItems = (deal: Deal) => {
+    setActionItemsModal({
+      open: true,
+      deal: { id: deal.id, deal_name: deal.deal_name }
+    });
   };
 
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Fixed Header */}
-      <div className="flex-shrink-0 bg-background border-b">
-        <div className="px-6 py-4 space-y-4">
-          {/* Search and Actions Row */}
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search all deal details..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowImportExport(!showImportExport)}
-                className="flex items-center gap-2"
-              >
-                <Upload className="h-4 w-4" />
-                Import
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => exportToCSV(deals)}
-                disabled={isProcessing}
-                className="flex items-center gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Export
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowColumnCustomizer(true)}
-                className="flex items-center gap-2"
-              >
-                <Settings className="h-4 w-4" />
-                Columns
-              </Button>
-            </div>
-          </div>
-
-          {/* Import/Export Bar */}
-          {showImportExport && (
-            <ImportExportBar
-              onImport={importFromCSV}
-              onExport={() => exportToCSV(deals)}
-              isProcessing={isProcessing}
-              onClose={() => setShowImportExport(false)}
-            />
-          )}
-
-          {/* Bulk Actions Bar */}
-          {selectedDeals.length > 0 && (
-            <BulkActionsBar
-              selectedCount={selectedDeals.length}
-              onDelete={handleBulkDelete}
-              onSelectAll={() => handleSelectAll(false)}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Scrollable Table Content */}
-      <div className="flex-1 overflow-auto">
-        <div className="px-6">
-          <div className="bg-white border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50 border-b">
-                  <tr>
-                    <th className="p-3 text-left">
-                      <Checkbox
-                        checked={selectedDeals.length === filteredDeals.length && filteredDeals.length > 0}
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </th>
-                    {visibleColumns.project && <th className="p-3 text-left font-medium">Project</th>}
-                    {visibleColumns.customer && <th className="p-3 text-left font-medium">Customer</th>}
-                    {visibleColumns.leadOwner && <th className="p-3 text-left font-medium">Lead Owner</th>}
-                    {visibleColumns.stage && <th className="p-3 text-left font-medium">Stage</th>}
-                    {visibleColumns.priority && <th className="p-3 text-left font-medium">Priority</th>}
-                    {visibleColumns.value && <th className="p-3 text-left font-medium">Value</th>}
-                    {visibleColumns.expectedClose && <th className="p-3 text-left font-medium">Expected Close</th>}
-                    {visibleColumns.actions && <th className="p-3 text-left font-medium">Actions</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredDeals.map((deal) => (
-                    <tr key={deal.id} className="border-b hover:bg-muted/30 transition-colors">
-                      <td className="p-3">
-                        <Checkbox
-                          checked={selectedDeals.includes(deal.id)}
-                          onCheckedChange={(checked) => handleSelectDeal(deal.id, checked as boolean)}
-                        />
-                      </td>
-                      {visibleColumns.project && (
-                        <td 
-                          className="p-3 cursor-pointer hover:text-primary"
-                          onClick={() => onDealClick(deal)}
-                        >
-                          <div className="font-medium">{deal.project_name || deal.deal_name}</div>
-                        </td>
-                      )}
-                      {visibleColumns.customer && (
-                        <td className="p-3">
-                          <div>{deal.customer_name || '-'}</div>
-                        </td>
-                      )}
-                      {visibleColumns.leadOwner && (
-                        <td className="p-3">
-                          <div>{deal.lead_owner || '-'}</div>
-                        </td>
-                      )}
-                      {visibleColumns.stage && (
-                        <td className="p-3">
-                          <Badge className={getStageColor(deal.stage)}>
-                            {deal.stage}
-                          </Badge>
-                        </td>
-                      )}
-                      {visibleColumns.priority && (
-                        <td className="p-3">
-                          {deal.priority ? (
-                            <Badge className={getPriorityColor(deal.priority)}>
-                              {deal.priority} ({getPriorityLabel(deal.priority)})
-                            </Badge>
-                          ) : (
-                            <span>-</span>
-                          )}
-                        </td>
-                      )}
-                      {visibleColumns.value && (
-                        <td className="p-3">
-                          {formatCurrency(deal.total_contract_value)}
-                        </td>
-                      )}
-                      {visibleColumns.expectedClose && (
-                        <td className="p-3">
-                          {formatDate(deal.expected_closing_date)}
-                        </td>
-                      )}
-                      {visibleColumns.actions && (
-                        <td className="p-3">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onDealClick(deal)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => onDeleteDeals([deal.id])}
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleActionItemsClick(deal)}
-                              className="h-8 px-2 py-1 text-xs"
-                            >
-                              <List className="h-3 w-3 mr-1" />
-                              Action
-                            </Button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            
-            {filteredDeals.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                {searchTerm ? 'No deals found matching your search.' : 'No deals found.'}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Column Customizer Modal */}
-      {showColumnCustomizer && (
-        <ColumnCustomizer
-          visibleColumns={visibleColumns}
-          onColumnsChange={setVisibleColumns}
-          onClose={() => setShowColumnCustomizer(false)}
+      {/* Filter Panel */}
+      <div className="flex-shrink-0 border-b bg-background">
+        <DealsFilterPanel 
+          deals={deals} 
+          onFilteredDealsChange={setFilteredDeals}
         />
+      </div>
+
+      {/* Import/Export Bar */}
+      {selectedDeals.length === 0 && (
+        <div className="flex-shrink-0 bg-background border-b">
+          <ImportExportBar
+            onImport={importExportHook.handleImport}
+            onExportAll={() => importExportHook.handleExportAll(filteredDeals)}
+            onExportSelected={() => importExportHook.handleExportSelected(filteredDeals, selectedDeals)}
+            onExportFiltered={() => importExportHook.handleExportFiltered(filteredDeals)}
+            selectedCount={selectedDeals.length}
+            totalCount={filteredDeals.length}
+            entityName="deals"
+          />
+        </div>
       )}
 
-      {/* Deal Action Items Modal */}
+      {/* Bulk Actions Bar */}
+      {selectedDeals.length > 0 && (
+        <div className="flex-shrink-0 bg-background border-b">
+          <BulkActionsBar
+            selectedCount={selectedDeals.length}
+            onDelete={() => {
+              onDeleteDeals(selectedDeals);
+              setSelectedDeals([]);
+            }}
+            onExport={() => importExportHook.handleExportSelected(filteredDeals, selectedDeals)}
+            onClearSelection={() => setSelectedDeals([])}
+          />
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto p-6">
+        <div className="space-y-4">
+          {/* Header Row */}
+          <div className="grid grid-cols-12 gap-4 items-center py-3 px-4 bg-muted rounded-lg font-medium text-sm">
+            <div className="col-span-1">
+              <Checkbox
+                checked={selectedDeals.length === filteredDeals.length && filteredDeals.length > 0}
+                onCheckedChange={handleSelectAll}
+              />
+            </div>
+            <div className="col-span-2">Deal Name</div>
+            <div className="col-span-1">Stage</div>
+            <div className="col-span-2">Customer</div>
+            <div className="col-span-1">Value</div>
+            <div className="col-span-2">Expected Close</div>
+            <div className="col-span-1">Priority</div>
+            <div className="col-span-2">Actions</div>
+          </div>
+
+          {/* Deal Rows */}
+          {filteredDeals.map((deal) => (
+            <Card key={deal.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4">
+                <div className="grid grid-cols-12 gap-4 items-center">
+                  <div className="col-span-1">
+                    <Checkbox
+                      checked={selectedDeals.includes(deal.id)}
+                      onCheckedChange={(checked) => handleSelectDeal(deal.id, !!checked)}
+                    />
+                  </div>
+                  
+                  <div className="col-span-2">
+                    <button
+                      onClick={() => onDealClick(deal)}
+                      className="text-left hover:text-primary font-medium"
+                    >
+                      {deal.deal_name || 'Untitled Deal'}
+                    </button>
+                  </div>
+                  
+                  <div className="col-span-1">
+                    <Badge className={getStageColor(deal.stage)} variant="secondary">
+                      {deal.stage}
+                    </Badge>
+                  </div>
+                  
+                  <div className="col-span-2 text-sm text-muted-foreground">
+                    {deal.customer_name || 'N/A'}
+                  </div>
+                  
+                  <div className="col-span-1 font-medium">
+                    {formatCurrency(deal.total_contract_value)}
+                  </div>
+                  
+                  <div className="col-span-2 text-sm">
+                    {formatDate(deal.expected_closing_date)}
+                  </div>
+                  
+                  <div className="col-span-1">
+                    {deal.priority && (
+                      <Badge variant="outline">
+                        P{deal.priority}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className="col-span-2 flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onDealClick(deal)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onDeleteDeals([deal.id])}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleActionItems(deal)}
+                    >
+                      <List className="w-4 h-4" />
+                      Action
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+
+          {filteredDeals.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No deals found matching your criteria.</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Action Items Modal */}
       <DealActionItemsModal
-        open={actionItemsModalOpen}
-        onOpenChange={setActionItemsModalOpen}
-        deal={selectedDealForActions}
+        open={actionItemsModal.open}
+        onOpenChange={(open) => setActionItemsModal({ open, deal: actionItemsModal.deal })}
+        deal={actionItemsModal.deal}
       />
     </div>
   );
