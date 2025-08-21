@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Deal, STAGE_COLORS } from "@/types/deal";
 import { format } from "date-fns";
-import { Trash2, XCircle } from "lucide-react";
+import { Trash2, XCircle, CheckSquare } from "lucide-react";
 
 interface DealCardProps {
   deal: Deal;
@@ -15,6 +15,7 @@ interface DealCardProps {
   selectionMode?: boolean;
   onDelete?: (dealId: string) => void;
   onStageChange?: (dealId: string, newStage: any) => void;
+  onActionClick?: (deal: Deal) => void;
 }
 
 export const DealCard = ({ 
@@ -24,7 +25,8 @@ export const DealCard = ({
   isSelected, 
   selectionMode, 
   onDelete, 
-  onStageChange 
+  onStageChange,
+  onActionClick 
 }: DealCardProps) => {
   const formatCurrency = (amount: number, currency: string = 'EUR') => {
     const symbols = { USD: '$', EUR: '€', INR: '₹' };
@@ -35,6 +37,13 @@ export const DealCard = ({
     e.stopPropagation();
     if (onStageChange) {
       onStageChange(deal.id, 'Dropped');
+    }
+  };
+
+  const handleActionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onActionClick) {
+      onActionClick(deal);
     }
   };
 
@@ -54,6 +63,17 @@ export const DealCard = ({
             {deal.project_name || 'Untitled Deal'}
           </CardTitle>
           <div className="flex items-center gap-1">
+            {!selectionMode && onActionClick && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleActionClick}
+                className="opacity-0 group-hover:opacity-100 transition-all duration-200 p-1 h-6 w-6 bg-blue-100 hover:bg-blue-200 text-blue-600"
+                title="Action Items"
+              >
+                <CheckSquare className="w-3 h-3" />
+              </Button>
+            )}
             {!selectionMode && deal.stage === 'Offered' && onStageChange && (
               <Button
                 size="sm"
