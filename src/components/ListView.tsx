@@ -12,6 +12,7 @@ import { ColumnCustomizer, ColumnConfig } from "./ColumnCustomizer";
 import { ImportExportBar } from "./ImportExportBar";
 import { BulkActionsBar } from "./BulkActionsBar";
 import { DealsAdvancedFilter, AdvancedFilterState } from "./DealsAdvancedFilter";
+import { DealActionItemsModal } from "./DealActionItemsModal";
 import { useToast } from "@/hooks/use-toast";
 
 interface ListViewProps {
@@ -45,6 +46,11 @@ export const ListView = ({
   const [selectedDeals, setSelectedDeals] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(50);
+  
+  // Action Items Modal state
+  const [actionModalOpen, setActionModalOpen] = useState(false);
+  const [selectedDealForActions, setSelectedDealForActions] = useState<Deal | null>(null);
+
   const [columns, setColumns] = useState<ColumnConfig[]>([
     { field: 'project_name', label: 'Project', visible: true, order: 0 },
     { field: 'customer_name', label: 'Customer', visible: true, order: 1 },
@@ -396,17 +402,12 @@ export const ListView = ({
   const selectedDealObjects = deals.filter(deal => selectedDeals.has(deal.id));
 
   const handleActionClick = (deal: Deal) => {
-    // Action button functionality - placeholder for now
-    console.log('Action clicked for deal:', deal);
-    toast({
-      title: "Action",
-      description: `Action button clicked for ${deal.project_name || deal.deal_name}`,
-    });
+    setSelectedDealForActions(deal);
+    setActionModalOpen(true);
   };
 
   return (
     <div className="h-full flex flex-col bg-background">
-      {/* Fixed Header with search and filters */}
       <div className="flex-shrink-0 p-4 bg-background border-b">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex flex-col sm:flex-row gap-4 flex-1">
@@ -459,7 +460,6 @@ export const ListView = ({
         </div>
       </div>
 
-      {/* Scrollable table area - Takes remaining height */}
       <div className="flex-1 min-h-0 overflow-auto">
         <Table ref={tableRef} className="w-full">
           <TableHeader className="sticky top-0 bg-primary/5 backdrop-blur-sm z-20 border-b-2 border-primary/20">
@@ -495,7 +495,6 @@ export const ListView = ({
                       sortOrder === "asc" ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />
                     )}
                   </div>
-                  {/* Resize handle */}
                   <div
                     className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-primary/40 bg-transparent"
                     onMouseDown={(e) => handleMouseDown(e, column.field)}
@@ -598,7 +597,6 @@ export const ListView = ({
         </Table>
       </div>
 
-      {/* Fixed bottom section with bulk actions and pagination */}
       <div className="flex-shrink-0 bg-background border-t">
         {selectedDeals.size > 0 && (
           <BulkActionsBar
@@ -609,7 +607,6 @@ export const ListView = ({
           />
         )}
 
-        {/* Pagination */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4">
           <div className="flex flex-col sm:flex-row items-center gap-4 text-sm text-muted-foreground">
             <span>Total: <strong>{filteredAndSortedDeals.length}</strong> deals</span>
@@ -659,6 +656,12 @@ export const ListView = ({
           )}
         </div>
       </div>
+
+      <DealActionItemsModal
+        open={actionModalOpen}
+        onOpenChange={setActionModalOpen}
+        deal={selectedDealForActions}
+      />
     </div>
   );
 };
