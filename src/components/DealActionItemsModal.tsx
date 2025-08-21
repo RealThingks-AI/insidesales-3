@@ -85,7 +85,8 @@ export const DealActionItemsModal = ({ open, onOpenChange, deal }: DealActionIte
     
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      // Use type assertion to work around TypeScript issues until types are regenerated
+      const { data, error } = await (supabase as any)
         .from('deal_action_items')
         .select('*')
         .eq('deal_id', deal.id)
@@ -94,7 +95,7 @@ export const DealActionItemsModal = ({ open, onOpenChange, deal }: DealActionIte
       if (error) throw error;
       
       // Type cast the data to ensure status field matches our interface
-      const typedData = (data || []).map(item => ({
+      const typedData = (data || []).map((item: any) => ({
         ...item,
         status: item.status as 'Open' | 'Ongoing' | 'Closed'
       }));
@@ -139,7 +140,7 @@ export const DealActionItemsModal = ({ open, onOpenChange, deal }: DealActionIte
 
       if (editingItem) {
         // Update existing item
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('deal_action_items')
           .update({
             next_action: nextAction.trim(),
@@ -159,7 +160,7 @@ export const DealActionItemsModal = ({ open, onOpenChange, deal }: DealActionIte
         });
       } else {
         // Create new item
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from('deal_action_items')
           .insert([actionItemData])
           .select()
@@ -197,7 +198,7 @@ export const DealActionItemsModal = ({ open, onOpenChange, deal }: DealActionIte
 
   const handleDelete = async (item: DealActionItem) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('deal_action_items')
         .delete()
         .eq('id', item.id);
