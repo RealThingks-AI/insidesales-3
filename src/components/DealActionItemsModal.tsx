@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -37,16 +38,28 @@ interface DealActionItemsModalProps {
 export const DealActionItemsModal = ({ deal, isOpen, onClose }: DealActionItemsModalProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { displayNames } = useUserDisplayNames();
   
   const [actionItems, setActionItems] = useState<DealActionItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [newActionItem, setNewActionItem] = useState({
+  const [newActionItem, setNewActionItem] = useState<{
+    next_action: string;
+    assigned_to: string;
+    due_date: Date | undefined;
+    status: 'Open' | 'Ongoing' | 'Closed';
+  }>({
     next_action: '',
     assigned_to: '',
-    due_date: undefined as Date | undefined,
-    status: 'Open' as const
+    due_date: undefined,
+    status: 'Open'
   });
+
+  // Get all unique user IDs from action items for display names
+  const userIds = Array.from(new Set([
+    ...actionItems.map(item => item.assigned_to).filter(Boolean),
+    ...actionItems.map(item => item.created_by).filter(Boolean)
+  ])) as string[];
+
+  const { displayNames } = useUserDisplayNames(userIds);
 
   const fetchActionItems = async () => {
     if (!deal?.id) return;
@@ -60,7 +73,15 @@ export const DealActionItemsModal = ({ deal, isOpen, onClose }: DealActionItemsM
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setActionItems(data || []);
+      
+      // Type cast with proper status validation
+      const typedData = (data || []).map(item => ({
+        ...item,
+        status: ['Open', 'Ongoing', 'Closed'].includes(item.status) ? 
+          item.status as 'Open' | 'Ongoing' | 'Closed' : 'Open'
+      }));
+      
+      setActionItems(typedData);
     } catch (error) {
       console.error('Error fetching action items:', error);
       toast({
@@ -99,7 +120,12 @@ export const DealActionItemsModal = ({ deal, isOpen, onClose }: DealActionItemsM
 
       if (error) throw error;
 
-      setActionItems(prev => [data, ...prev]);
+      const typedData = {
+        ...data,
+        status: data.status as 'Open' | 'Ongoing' | 'Closed'
+      };
+
+      setActionItems(prev => [typedData, ...prev]);
       setNewActionItem({
         next_action: '',
         assigned_to: '',
@@ -259,8 +285,8 @@ export const DealActionItemsModal = ({ deal, isOpen, onClose }: DealActionItemsM
                 <Label htmlFor="status">Status</Label>
                 <Select
                   value={newActionItem.status}
-                  onValueChange={(value: 'Open' | 'Ongoing' | 'Closed') => 
-                    setNewActionItem(prev => ({ ...prev, status: value }))
+                  onValueChange={(value) => 
+                    setNewActionItem(prev => ({ ...prev, status: value as 'Open' | 'Ongoing' | 'Closed' }))
                   }
                 >
                   <SelectTrigger>
@@ -310,8 +336,8 @@ export const DealActionItemsModal = ({ deal, isOpen, onClose }: DealActionItemsM
                       <div className="flex items-center gap-2 ml-4">
                         <Select
                           value={item.status}
-                          onValueChange={(value: 'Open' | 'Ongoing' | 'Closed') => 
-                            handleUpdateStatus(item.id, value)
+                          onValueChange={(value) => 
+                            handleUpdateStatus(item.id, value as 'Open' | 'Ongoing' | 'Closed')
                           }
                         >
                           <SelectTrigger className={cn("w-24 h-8 text-xs", getStatusColor(item.status))}>

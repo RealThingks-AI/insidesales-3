@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,12 +10,6 @@ import { STAGE_COLORS } from '@/types/deal';
 import { Search, Edit2, Trash2, Users, Settings, Filter, FileDown, FileUp, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { BulkActionsBar } from '@/components/BulkActionsBar';
-import { ImportExportBar } from '@/components/ImportExportBar';
-import { DealsFilterPanel } from '@/components/DealsFilterPanel';
-import { ColumnCustomizer } from '@/components/ColumnCustomizer';
-import { InlineEditCell } from '@/components/InlineEditCell';
-import { useDealsImportExport } from '@/hooks/useDealsImportExport';
 import { DealActionItemsModal } from '@/components/DealActionItemsModal';
 
 interface ListViewProps {
@@ -50,7 +45,6 @@ export const ListView = ({ deals, onDealClick, onUpdateDeal, onDeleteDeals, onIm
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [showColumnCustomizer, setShowColumnCustomizer] = useState(false);
   const [columns, setColumns] = useState(defaultColumns);
   const [filters, setFilters] = useState<Record<string, any>>({});
   const [editingCell, setEditingCell] = useState<{ dealId: string; field: string } | null>(null);
@@ -58,10 +52,6 @@ export const ListView = ({ deals, onDealClick, onUpdateDeal, onDeleteDeals, onIm
   const [actionModalDeal, setActionModalDeal] = useState<Deal | null>(null);
   
   const { toast } = useToast();
-  
-  const { handleImport, handleExportAll, handleExportSelected, handleExportFiltered } = useDealsImportExport({
-    onRefresh: () => window.location.reload()
-  });
 
   const filteredAndSortedDeals = useMemo(() => {
     let filtered = deals.filter(deal => {
@@ -189,6 +179,45 @@ export const ListView = ({ deals, onDealClick, onUpdateDeal, onDeleteDeals, onIm
 
   const visibleColumns = columns.filter(col => col.visible);
 
+  const InlineEditCell = ({ 
+    value, 
+    dealId, 
+    field, 
+    className = "" 
+  }: { 
+    value: string; 
+    dealId: string; 
+    field: string; 
+    className?: string; 
+  }) => {
+    const isEditing = editingCell?.dealId === dealId && editingCell?.field === field;
+    
+    if (isEditing) {
+      return (
+        <Input
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={saveEdit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') saveEdit();
+            if (e.key === 'Escape') cancelEdit();
+          }}
+          className="h-8"
+          autoFocus
+        />
+      );
+    }
+    
+    return (
+      <div
+        className={cn("cursor-pointer hover:bg-muted/50 p-1 rounded", className)}
+        onClick={() => startEditing(dealId, field, value)}
+      >
+        {value || '-'}
+      </div>
+    );
+  };
+
   return (
     <div className="h-full flex flex-col bg-background">
       <div className="flex-shrink-0 p-6 border-b bg-background">
@@ -203,67 +232,34 @@ export const ListView = ({ deals, onDealClick, onUpdateDeal, onDeleteDeals, onIm
                 className="pl-10"
               />
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex-shrink-0"
-            >
-              <Filter className="w-4 h-4 mr-2" />
-              Filters
-              {Object.values(filters).some(v => v && (Array.isArray(v) ? v.length > 0 : true)) && (
-                <Badge variant="secondary" className="ml-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-                  {Object.values(filters).filter(v => v && (Array.isArray(v) ? v.length > 0 : true)).length}
-                </Badge>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowColumnCustomizer(!showColumnCustomizer)}
-              className="flex-shrink-0"
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Columns
-            </Button>
           </div>
         </div>
-
-        {showFilters && (
-          <div className="mt-4">
-            <DealsFilterPanel
-              onFiltersChange={setFilters}
-              deals={deals}
-            />
-          </div>
-        )}
-
-        {showColumnCustomizer && (
-          <div className="mt-4">
-            <ColumnCustomizer
-              columns={columns}
-              onColumnsChange={setColumns}
-              onClose={() => setShowColumnCustomizer(false)}
-            />
-          </div>
-        )}
       </div>
 
       {selectedDeals.length > 0 && (
-        <BulkActionsBar
-          selectedCount={selectedDeals.length}
-          onDelete={handleDeleteSelected}
-          onCancel={() => setSelectedDeals([])}
-        />
+        <div className="p-4 bg-blue-50 border-b flex items-center justify-between">
+          <span className="text-sm font-medium">
+            {selectedDeals.length} deal(s) selected
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleDeleteSelected}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Selected
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedDeals([])}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
       )}
-
-      <ImportExportBar
-        onImport={(file) => handleImport(file)}
-        onExportAll={() => handleExportAll(deals)}
-        onExportSelected={() => handleExportSelected(deals, selectedDeals)}
-        onExportFiltered={() => handleExportFiltered(filteredAndSortedDeals)}
-        selectedCount={selectedDeals.length}
-        filteredCount={filteredAndSortedDeals.length}
-        totalCount={deals.length}
-      />
 
       <div className="flex-1 overflow-auto">
         <Table>
@@ -308,14 +304,10 @@ export const ListView = ({ deals, onDealClick, onUpdateDeal, onDeleteDeals, onIm
                     )}
                     {column.key === 'deal_name' && (
                       <InlineEditCell
-                        value={deal.deal_name}
-                        isEditing={editingCell?.dealId === deal.id && editingCell?.field === 'deal_name'}
-                        editValue={editValue}
-                        onEditValueChange={setEditValue}
-                        onStartEdit={() => startEditing(deal.id, 'deal_name', deal.deal_name)}
-                        onSave={saveEdit}
-                        onCancel={cancelEdit}
-                        className="font-medium cursor-pointer hover:bg-muted/50"
+                        value={deal.deal_name || ''}
+                        dealId={deal.id}
+                        field="deal_name"
+                        className="font-medium"
                       />
                     )}
                     {column.key === 'stage' && (
@@ -325,46 +317,30 @@ export const ListView = ({ deals, onDealClick, onUpdateDeal, onDeleteDeals, onIm
                     )}
                     {column.key === 'customer_name' && (
                       <InlineEditCell
-                        value={deal.customer_name || '-'}
-                        isEditing={editingCell?.dealId === deal.id && editingCell?.field === 'customer_name'}
-                        editValue={editValue}
-                        onEditValueChange={setEditValue}
-                        onStartEdit={() => startEditing(deal.id, 'customer_name', deal.customer_name)}
-                        onSave={saveEdit}
-                        onCancel={cancelEdit}
+                        value={deal.customer_name || ''}
+                        dealId={deal.id}
+                        field="customer_name"
                       />
                     )}
                     {column.key === 'total_contract_value' && (
                       <InlineEditCell
                         value={formatCurrency(deal.total_contract_value)}
-                        isEditing={editingCell?.dealId === deal.id && editingCell?.field === 'total_contract_value'}
-                        editValue={editValue}
-                        onEditValueChange={setEditValue}
-                        onStartEdit={() => startEditing(deal.id, 'total_contract_value', deal.total_contract_value)}
-                        onSave={saveEdit}
-                        onCancel={cancelEdit}
+                        dealId={deal.id}
+                        field="total_contract_value"
                       />
                     )}
                     {column.key === 'probability' && (
                       <InlineEditCell
-                        value={deal.probability ? `${deal.probability}%` : '-'}
-                        isEditing={editingCell?.dealId === deal.id && editingCell?.field === 'probability'}
-                        editValue={editValue}
-                        onEditValueChange={setEditValue}
-                        onStartEdit={() => startEditing(deal.id, 'probability', deal.probability)}
-                        onSave={saveEdit}
-                        onCancel={cancelEdit}
+                        value={deal.probability ? `${deal.probability}%` : ''}
+                        dealId={deal.id}
+                        field="probability"
                       />
                     )}
                     {column.key === 'expected_closing_date' && (
                       <InlineEditCell
                         value={formatDate(deal.expected_closing_date)}
-                        isEditing={editingCell?.dealId === deal.id && editingCell?.field === 'expected_closing_date'}
-                        editValue={editValue}
-                        onEditValueChange={setEditValue}
-                        onStartEdit={() => startEditing(deal.id, 'expected_closing_date', deal.expected_closing_date)}
-                        onSave={saveEdit}
-                        onCancel={cancelEdit}
+                        dealId={deal.id}
+                        field="expected_closing_date"
                       />
                     )}
                     {column.key === 'priority' && deal.priority && (
@@ -380,6 +356,7 @@ export const ListView = ({ deals, onDealClick, onUpdateDeal, onDeleteDeals, onIm
                           size="sm"
                           onClick={() => onDealClick(deal)}
                           className="h-8 w-8 p-0"
+                          title="Edit Deal"
                         >
                           <Edit2 className="h-4 w-4" />
                         </Button>
@@ -388,6 +365,7 @@ export const ListView = ({ deals, onDealClick, onUpdateDeal, onDeleteDeals, onIm
                           size="sm"
                           onClick={() => setActionModalDeal(deal)}
                           className="h-8 w-8 p-0"
+                          title="Action Items"
                         >
                           <Calendar className="h-4 w-4" />
                         </Button>
@@ -396,6 +374,7 @@ export const ListView = ({ deals, onDealClick, onUpdateDeal, onDeleteDeals, onIm
                           size="sm"
                           onClick={() => handleSelectDeal(deal.id, true)}
                           className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                          title="Select for Delete"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
