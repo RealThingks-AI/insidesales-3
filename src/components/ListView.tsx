@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Deal, DealStage, DEAL_STAGES, STAGE_COLORS } from "@/types/deal";
-import { Search, Filter, X, Edit, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { Search, Filter, X, Edit, Trash2, ArrowUp, ArrowDown, CheckSquare } from "lucide-react";
 import { format } from "date-fns";
 import { InlineEditCell } from "./InlineEditCell";
 import { ColumnCustomizer, ColumnConfig } from "./ColumnCustomizer";
@@ -395,6 +395,15 @@ export const ListView = ({
   // Get selected deal objects for export
   const selectedDealObjects = deals.filter(deal => selectedDeals.has(deal.id));
 
+  const handleActionClick = (deal: Deal) => {
+    // Action button functionality - placeholder for now
+    console.log('Action clicked for deal:', deal);
+    toast({
+      title: "Action",
+      description: `Action button clicked for ${deal.project_name || deal.deal_name}`,
+    });
+  };
+
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Fixed Header with search and filters */}
@@ -496,7 +505,7 @@ export const ListView = ({
                   />
                 </TableHead>
               ))}
-              <TableHead className="w-20 min-w-20 bg-primary/10 border-r border-primary/20 text-foreground font-bold">Actions</TableHead>
+              <TableHead className="w-32 min-w-32 bg-primary/10 border-r border-primary/20 text-foreground font-bold">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -547,6 +556,15 @@ export const ListView = ({
                   ))}
                   <TableCell>
                     <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleActionClick(deal)}
+                        className="hover-scale p-1 h-7 w-7"
+                        title="Actions"
+                      >
+                        <CheckSquare className="w-4 h-4" />
+                      </Button>
                       <Button
                         size="sm"
                         variant="ghost"
