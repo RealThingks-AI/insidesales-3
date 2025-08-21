@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { BulkActionsBar } from "./BulkActionsBar";
 import { ImportExportBar } from "./ImportExportBar";
 import { DealsAdvancedFilter, AdvancedFilterState } from "./DealsAdvancedFilter";
-import { DealActionItemsModal } from "./DealActionItemsModal";
 
 interface KanbanBoardProps {
   deals: Deal[];
@@ -46,11 +45,6 @@ export const KanbanBoard = ({
     searchTerm: "",
     probabilityRange: [0, 100],
   });
-  
-  // Action Items Modal state
-  const [actionModalOpen, setActionModalOpen] = useState(false);
-  const [selectedDealForActions, setSelectedDealForActions] = useState<Deal | null>(null);
-  
   const { toast } = useToast();
 
   // Generate available options for multi-select filters
@@ -244,11 +238,6 @@ export const KanbanBoard = ({
 
   // Get selected deal objects for export
   const selectedDealObjects = deals.filter(deal => selectedDeals.has(deal.id));
-
-  const handleActionClick = (deal: Deal) => {
-    setSelectedDealForActions(deal);
-    setActionModalOpen(true);
-  };
 
   const visibleStages = getVisibleStages();
 
@@ -449,40 +438,32 @@ export const KanbanBoard = ({
                                       description: `Successfully deleted ${deal.project_name || 'deal'}`,
                                     });
                                   }}
-                                   onStageChange={handleDealCardAction}
-                                   onActionClick={handleActionClick}
-                                 />
-                               </div>
-                             )}
-                           </Draggable>
-                         ))}
-                         {provided.placeholder}
-                       </div>
-                     )}
-                   </Droppable>
-                 </div>
-               );
-             })}
-           </div>
-         </DragDropContext>
-       </div>
+                                  onStageChange={handleDealCardAction}
+                                />
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </div>
+              );
+            })}
+          </div>
+        </DragDropContext>
+      </div>
 
-       {/* Fixed bottom bulk actions */}
-       <div className="flex-shrink-0">
-         <BulkActionsBar
-           selectedCount={selectedDeals.size}
-           onDelete={handleBulkDelete}
-           onExport={handleBulkExport}
-           onClearSelection={() => setSelectedDeals(new Set())}
-         />
-       </div>
-
-       {/* Action Items Modal */}
-       <DealActionItemsModal 
-         open={actionModalOpen}
-         onOpenChange={setActionModalOpen}
-         deal={selectedDealForActions}
-       />
-     </div>
+      {/* Fixed bottom bulk actions */}
+      <div className="flex-shrink-0">
+        <BulkActionsBar
+          selectedCount={selectedDeals.size}
+          onDelete={handleBulkDelete}
+          onExport={handleBulkExport}
+          onClearSelection={() => setSelectedDeals(new Set())}
+        />
+      </div>
+    </div>
   );
 };
