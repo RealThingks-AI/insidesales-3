@@ -1,9 +1,11 @@
 
-import { Deal } from "@/types/deal";
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, CheckSquare } from "lucide-react";
+import { Deal, STAGE_COLORS } from "@/types/deal";
 import { format } from "date-fns";
+import { Trash2, XCircle } from "lucide-react";
 
 interface DealCardProps {
   deal: Deal;
@@ -11,9 +13,8 @@ interface DealCardProps {
   isDragging?: boolean;
   isSelected?: boolean;
   selectionMode?: boolean;
-  onDelete: (dealId: string) => void;
-  onStageChange: (dealId: string, newStage: any) => void;
-  onActionClick?: (deal: Deal) => void;
+  onDelete?: (dealId: string) => void;
+  onStageChange?: (dealId: string, newStage: any) => void;
 }
 
 export const DealCard = ({ 
@@ -21,79 +22,50 @@ export const DealCard = ({
   onClick, 
   isDragging, 
   isSelected, 
-  selectionMode,
-  onDelete,
-  onStageChange,
-  onActionClick
+  selectionMode, 
+  onDelete, 
+  onStageChange 
 }: DealCardProps) => {
-  const formatCurrency = (amount: number | undefined) => {
-    if (!amount) return '';
-    return `€${amount.toLocaleString()}`;
+  const formatCurrency = (amount: number, currency: string = 'EUR') => {
+    const symbols = { USD: '$', EUR: '€', INR: '₹' };
+    return `${symbols[currency as keyof typeof symbols] || '€'}${amount.toLocaleString()}`;
   };
 
-  const formatDate = (date: string | undefined) => {
-    if (!date) return '';
-    try {
-      return format(new Date(date), 'MMM dd');
-    } catch {
-      return '';
+  const handleMoveToDropped = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onStageChange) {
+      onStageChange(deal.id, 'Dropped');
     }
   };
 
-  const getPriorityColor = (priority: number | undefined) => {
-    if (!priority) return 'bg-gray-100 text-gray-800';
-    if (priority >= 8) return 'bg-red-100 text-red-800';
-    if (priority >= 6) return 'bg-orange-100 text-orange-800';
-    if (priority >= 4) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-green-100 text-green-800';
-  };
-
-  const handleActionClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onActionClick?.(deal);
-  };
-
   return (
-    <div
+    <Card
+      className={`deal-card cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 ${
+        isDragging ? 'opacity-50' : ''
+      } ${isSelected ? 'ring-2 ring-primary bg-primary/10 border-primary' : ''} ${
+        selectionMode ? 'pl-8' : ''
+      } animate-fade-in border-border/50 hover:bg-gradient-to-br hover:from-card hover:to-primary/5 button-scale min-h-[180px]`}
       onClick={onClick}
-      className={`
-        bg-card rounded-lg border border-border p-3 cursor-pointer 
-        transition-all duration-200 hover:shadow-md hover:border-primary/30
-        ${isDragging ? 'shadow-lg rotate-3 opacity-75' : ''}
-        ${isSelected ? 'ring-2 ring-primary bg-primary/5' : ''}
-        ${selectionMode ? 'hover:bg-muted/50' : 'hover:bg-accent/50'}
-        group relative
-      `}
+      style={{ boxShadow: 'var(--shadow-sm)' }}
     >
-      <div className="space-y-2">
-        <div className="flex items-start justify-between gap-2">
-          <h4 className="font-medium text-sm leading-tight text-foreground line-clamp-2 flex-1">
-            {deal.project_name || deal.deal_name}
-          </h4>
-          
-          {!selectionMode && (
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between mb-2">
+          <CardTitle className="text-base font-bold truncate text-foreground group-hover:text-primary transition-colors leading-tight">
+            {deal.project_name || 'Untitled Deal'}
+          </CardTitle>
+          <div className="flex items-center gap-1">
+            {!selectionMode && deal.stage === 'Offered' && onStageChange && (
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={handleActionClick}
-                className="h-6 w-6 p-0 hover:bg-primary/10"
-                title="Action Items"
+                onClick={handleMoveToDropped}
+                className="opacity-0 group-hover:opacity-100 transition-all duration-200 p-1 h-6 w-6 bg-orange-100 hover:bg-orange-200 text-orange-600"
+                title="Move to Dropped"
               >
-                <CheckSquare className="h-3 w-3" />
+                <XCircle className="w-3 h-3" />
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClick(e);
-                }}
-                className="h-6 w-6 p-0 hover:bg-primary/10"
-                title="Edit"
-              >
-                <Edit className="h-3 w-3" />
-              </Button>
+            )}
+            {!selectionMode && onDelete && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -101,58 +73,107 @@ export const DealCard = ({
                   e.stopPropagation();
                   onDelete(deal.id);
                 }}
-                className="h-6 w-6 p-0 hover:bg-destructive/10 text-destructive"
-                title="Delete"
+                className="opacity-0 group-hover:opacity-100 transition-all duration-200 p-1 h-6 w-6 bg-destructive/10 hover:bg-destructive/20 text-destructive"
               >
-                <Trash2 className="h-3 w-3" />
+                <Trash2 className="w-3 h-3" />
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-
+      </CardHeader>
+      
+      <CardContent className="pt-0 space-y-2 text-sm">
+        {/* Customer Name */}
         {deal.customer_name && (
-          <p className="text-xs text-muted-foreground line-clamp-1">
-            {deal.customer_name}
-          </p>
+          <div className="flex items-center">
+            <span className="text-xs text-muted-foreground w-16 shrink-0 font-medium">Customer:</span>
+            <p className="text-sm font-semibold text-foreground truncate">
+              {deal.customer_name}
+            </p>
+          </div>
         )}
-
-        <div className="flex flex-wrap gap-1">
+        
+        {/* Lead Name */}
+        {deal.lead_name && (
+          <div className="flex items-center">
+            <span className="text-xs text-muted-foreground w-16 shrink-0 font-medium">Lead:</span>
+            <p className="text-sm text-muted-foreground truncate font-medium">
+              {deal.lead_name}
+            </p>
+          </div>
+        )}
+        
+        {/* Lead Owner */}
+        {deal.lead_owner && (
+          <div className="flex items-center">
+            <span className="text-xs text-muted-foreground w-16 shrink-0 font-medium">Owner:</span>
+            <p className="text-sm text-muted-foreground truncate font-medium">
+              {deal.lead_owner}
+            </p>
+          </div>
+        )}
+        
+        {/* Probability */}
+        {deal.probability !== undefined && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground font-medium">Probability:</span>
+            <div className="flex items-center gap-2">
+              <div className="w-16 bg-muted rounded-full h-2">
+                <div 
+                  className="bg-primary rounded-full h-2 transition-all duration-300 hover:bg-primary-variant" 
+                  style={{ width: `${deal.probability}%` }}
+                />
+              </div>
+              <span className="text-xs font-semibold text-primary">{deal.probability}%</span>
+            </div>
+          </div>
+        )}
+        
+        {/* Contract Value */}
+        {deal.total_contract_value && (
+          <div className="flex items-center justify-between pt-2 border-t border-border/30">
+            <span className="text-xs text-muted-foreground font-medium">Value:</span>
+            <p className="font-bold text-sm text-primary">
+              {formatCurrency(deal.total_contract_value, deal.currency_type)}
+            </p>
+          </div>
+        )}
+        
+        {/* Expected Closing Date */}
+        {deal.expected_closing_date && (
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground font-medium">Close:</span>
+            <p className="text-xs text-muted-foreground font-medium">
+              {(() => {
+                try {
+                  return format(new Date(deal.expected_closing_date), 'MMM dd, yyyy');
+                } catch {
+                  return 'Invalid date';
+                }
+              })()}
+            </p>
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between pt-2 text-xs text-muted-foreground border-t border-border/30">
+          <span className="font-medium">Updated: {deal.modified_at ? (() => {
+            try {
+              return format(new Date(deal.modified_at), 'MMM dd');
+            } catch {
+              return 'Unknown';
+            }
+          })() : 'Unknown'}</span>
+          
           {deal.priority && (
             <Badge 
-              variant="secondary" 
-              className={`text-xs px-2 py-0 h-5 ${getPriorityColor(deal.priority)}`}
+              variant={deal.priority >= 4 ? 'destructive' : deal.priority >= 3 ? 'default' : 'secondary'}
+              className="text-xs px-2 py-0 font-semibold"
             >
               P{deal.priority}
             </Badge>
           )}
-          
-          {deal.probability !== undefined && (
-            <Badge variant="outline" className="text-xs px-2 py-0 h-5">
-              {deal.probability}%
-            </Badge>
-          )}
         </div>
-
-        <div className="space-y-1 text-xs text-muted-foreground">
-          {deal.total_contract_value && (
-            <div className="font-medium text-foreground">
-              {formatCurrency(deal.total_contract_value)}
-            </div>
-          )}
-          
-          {deal.expected_closing_date && (
-            <div>
-              Due: {formatDate(deal.expected_closing_date)}
-            </div>
-          )}
-          
-          {deal.lead_owner && (
-            <div className="truncate">
-              Owner: {deal.lead_owner}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };
