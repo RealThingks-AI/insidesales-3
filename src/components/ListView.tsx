@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +10,7 @@ import { Search, Edit2, Trash2, Users, Settings, Filter, FileDown, FileUp, Chevr
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { DealActionItemsModal } from '@/components/DealActionItemsModal';
+import { cn } from '@/lib/utils';
 
 interface ListViewProps {
   deals: Deal[];
