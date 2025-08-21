@@ -1,8 +1,8 @@
-
 import { useState, useMemo, useEffect } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { Deal, DealStage, DEAL_STAGES, STAGE_COLORS } from "@/types/deal";
 import { DealCard } from "./DealCard";
+import { DealActionItemsModal } from "./DealActionItemsModal";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,11 @@ export const KanbanBoard = ({
     searchTerm: "",
     probabilityRange: [0, 100],
   });
+  
+  // Action Items Modal state
+  const [actionModalOpen, setActionModalOpen] = useState(false);
+  const [selectedDealForActions, setSelectedDealForActions] = useState<Deal | null>(null);
+  
   const { toast } = useToast();
 
   // Generate available options for multi-select filters
@@ -234,6 +239,11 @@ export const KanbanBoard = ({
         variant: "destructive",
       });
     }
+  };
+
+  const handleActionClick = (deal: Deal) => {
+    setSelectedDealForActions(deal);
+    setActionModalOpen(true);
   };
 
   // Get selected deal objects for export
@@ -439,6 +449,7 @@ export const KanbanBoard = ({
                                     });
                                   }}
                                   onStageChange={handleDealCardAction}
+                                  onActionClick={handleActionClick}
                                 />
                               </div>
                             )}
@@ -464,6 +475,13 @@ export const KanbanBoard = ({
           onClearSelection={() => setSelectedDeals(new Set())}
         />
       </div>
+
+      {/* Action Items Modal */}
+      <DealActionItemsModal
+        open={actionModalOpen}
+        onOpenChange={setActionModalOpen}
+        deal={selectedDealForActions}
+      />
     </div>
   );
 };
