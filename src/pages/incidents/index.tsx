@@ -45,15 +45,44 @@ export default function Incidents() {
     try {
       const { data, error } = await supabase
         .from("incidents")
-        .select(`
-          *,
-          reported_by_profile:profiles!incidents_reported_by_fkey(full_name, email),
-          assigned_to_profile:profiles!incidents_assigned_to_fkey(full_name, email)
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setIncidents(data || []);
+      
+      // Fetch profile names separately
+      const incidentsWithProfiles = await Promise.all(
+        (data || []).map(async (incident) => {
+          let reported_by_profile = null;
+          let assigned_to_profile = null;
+
+          if (incident.reported_by) {
+            const { data: reportedBy } = await supabase
+              .from("profiles")
+              .select("full_name, email")
+              .eq("user_id", incident.reported_by)
+              .single();
+            reported_by_profile = reportedBy;
+          }
+
+          if (incident.assigned_to) {
+            const { data: assignedTo } = await supabase
+              .from("profiles")
+              .select("full_name, email")
+              .eq("user_id", incident.assigned_to)
+              .single();
+            assigned_to_profile = assignedTo;
+          }
+
+          return {
+            ...incident,
+            reported_by_profile,
+            assigned_to_profile,
+          };
+        })
+      );
+
+      setIncidents(incidentsWithProfiles);
     } catch (error: any) {
       console.error("Error fetching incidents:", error);
       toast.error("Failed to load incidents");
