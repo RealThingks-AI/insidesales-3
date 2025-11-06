@@ -192,17 +192,16 @@ export default function PageAccessManagement() {
                     {ROLES.map(role => <TableHead key={role} className="text-center">
                         {ROLE_LABELS[role as keyof typeof ROLE_LABELS]}
                       </TableHead>)}
-                    <TableHead className="text-right">Quick Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? <TableRow>
-                      <TableCell colSpan={ROLES.length + 3} className="text-center py-8">
+                      <TableCell colSpan={ROLES.length + 2} className="text-center py-8">
                         <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2" />
                         Loading pages...
                       </TableCell>
                     </TableRow> : pages.length === 0 ? <TableRow>
-                      <TableCell colSpan={ROLES.length + 3} className="text-center py-8">
+                      <TableCell colSpan={ROLES.length + 2} className="text-center py-8">
                         No pages found
                       </TableCell>
                     </TableRow> : pages.map(page => <TableRow key={page.id}>
@@ -218,19 +217,9 @@ export default function PageAccessManagement() {
                         {ROLES.map(role => {
                     const hasAccess = getAccessForPageRole(page.id, role);
                     return <TableCell key={role} className="text-center">
-                              <div className="flex items-center justify-center gap-2">
-                                <Switch checked={hasAccess} onCheckedChange={() => handleToggleAccess(page.id, role, hasAccess)} />
-                                {hasAccess ? <Badge variant="default" className="w-16">
-                                    Granted
-                                  </Badge> : <Badge variant="secondary" className="w-16">
-                                    Denied
-                                  </Badge>}
-                              </div>
+                              <Switch checked={hasAccess} onCheckedChange={() => handleToggleAccess(page.id, role, hasAccess)} />
                             </TableCell>;
                   })}
-                        <TableCell className="text-right">
-                          
-                        </TableCell>
                       </TableRow>)}
                 </TableBody>
               </Table>
