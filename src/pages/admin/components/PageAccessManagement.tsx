@@ -240,9 +240,7 @@ export default function PageAccessManagement() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Access Control Guidelines</CardTitle>
-        </CardHeader>
+        
         
       </Card>
     </div>;
