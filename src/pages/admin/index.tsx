@@ -5,17 +5,10 @@ import UserAccess from "./user-access";
 import Backup from "./components/Backup";
 import MaintenanceScheduling from "./components/MaintenanceScheduling";
 import PageAccessManagement from "./components/PageAccessManagement";
-
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("users");
-
-  return (
-    <div className="h-screen flex flex-col overflow-hidden">
-      <div className="flex-shrink-0 p-6 pb-0">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Admin Panel</h1>
-        </div>
-      </div>
+  return <div className="h-screen flex flex-col overflow-hidden">
+      
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden p-6 pt-4">
         <TabsList className="grid w-full grid-cols-4 lg:w-auto flex-shrink-0">
@@ -53,8 +46,6 @@ const Admin = () => {
           <MaintenanceScheduling />
         </TabsContent>
       </Tabs>
-    </div>
-  );
+    </div>;
 };
-
 export default Admin;

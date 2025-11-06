@@ -171,7 +171,7 @@ export default function PageAccessManagement() {
             <Shield className="h-6 w-6" />
             Page Access Control
           </h2>
-          <p className="text-muted-foreground">Manage role-based access to application pages</p>
+          
         </div>
         <Button variant="outline" size="sm" onClick={loadData} disabled={loading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -209,7 +209,7 @@ export default function PageAccessManagement() {
                         <TableCell>
                           <div className="space-y-1">
                             <p className="font-medium">{page.name}</p>
-                            {page.description && <p className="text-xs text-muted-foreground">{page.description}</p>}
+                            {page.description}
                           </div>
                         </TableCell>
                         <TableCell>
