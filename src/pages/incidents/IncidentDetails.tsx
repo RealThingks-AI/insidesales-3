@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, Clock, AlertTriangle } from "lucide-react";
 import IncidentComments from "./IncidentComments";
+import IncidentTimeline from "./IncidentTimeline";
 import { toast } from "sonner";
 
 interface IncidentDetailsProps {
@@ -84,6 +86,16 @@ export default function IncidentDetails({ open, onOpenChange, incident }: Incide
     }
   };
 
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "critical": return "destructive";
+      case "high": return "destructive";
+      case "medium": return "secondary";
+      case "low": return "outline";
+      default: return "outline";
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "open": return "destructive";
@@ -104,7 +116,10 @@ export default function IncidentDetails({ open, onOpenChange, incident }: Incide
             <span>{incident.ticket_number} - {incident.title}</span>
             <div className="flex gap-2">
               <Badge variant={getSeverityColor(incident.severity)}>
-                {incident.severity}
+                Severity: {incident.severity}
+              </Badge>
+              <Badge variant={getPriorityColor(incident.priority)}>
+                Priority: {incident.priority}
               </Badge>
               <Badge variant={getStatusColor(incident.status)}>
                 {incident.status}
@@ -114,6 +129,26 @@ export default function IncidentDetails({ open, onOpenChange, incident }: Incide
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* SLA Status */}
+          {(incident.sla_response_breached || incident.sla_resolution_breached) && (
+            <Card className="border-destructive bg-destructive/5">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="font-medium">SLA Breach Alert</span>
+                </div>
+                <div className="mt-2 space-y-1 text-sm">
+                  {incident.sla_response_breached && (
+                    <p>• Response time SLA breached (Target: {incident.sla_target_response_hours}h)</p>
+                  )}
+                  {incident.sla_resolution_breached && (
+                    <p>• Resolution time SLA breached (Target: {incident.sla_target_resolution_hours}h)</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Impacted Service</p>
@@ -130,6 +165,23 @@ export default function IncidentDetails({ open, onOpenChange, incident }: Incide
             <div>
               <p className="text-sm font-medium text-muted-foreground">Created</p>
               <p className="text-sm">{format(new Date(incident.created_at), "PPp")}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">SLA Response Time</p>
+              <div className="flex items-center gap-2">
+                <Clock className="h-3 w-3" />
+                <p className="text-sm">{incident.sla_target_response_hours}h</p>
+                {incident.first_response_at && (
+                  <Badge variant="default" className="text-xs">Met</Badge>
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">SLA Resolution Time</p>
+              <div className="flex items-center gap-2">
+                <Clock className="h-3 w-3" />
+                <p className="text-sm">{incident.sla_target_resolution_hours}h</p>
+              </div>
             </div>
           </div>
 
@@ -173,6 +225,8 @@ export default function IncidentDetails({ open, onOpenChange, incident }: Incide
             </div>
           )}
 
+          <IncidentTimeline incidentId={incident.id} createdAt={new Date(incident.created_at)} />
+          
           <IncidentComments incidentId={incident.id} />
         </div>
       </DialogContent>

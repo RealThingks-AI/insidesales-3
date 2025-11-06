@@ -21,6 +21,7 @@ export default function Incidents() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedIncident, setSelectedIncident] = useState<any>(null);
@@ -38,7 +39,7 @@ export default function Incidents() {
   useEffect(() => {
     applyFilters();
     calculateStats();
-  }, [incidents, searchQuery, statusFilter, severityFilter]);
+  }, [incidents, searchQuery, statusFilter, severityFilter, priorityFilter]);
 
   const fetchIncidents = async () => {
     setLoading(true);
@@ -110,6 +111,10 @@ export default function Incidents() {
       filtered = filtered.filter((inc) => inc.severity === severityFilter);
     }
 
+    if (priorityFilter !== "all") {
+      filtered = filtered.filter((inc) => inc.priority === priorityFilter);
+    }
+
     setFilteredIncidents(filtered);
   };
 
@@ -166,6 +171,16 @@ export default function Incidents() {
     }
   };
 
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case "critical": return "destructive";
+      case "high": return "destructive";
+      case "medium": return "secondary";
+      case "low": return "outline";
+      default: return "outline";
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "open": return "destructive";
@@ -202,11 +217,31 @@ export default function Incidents() {
       ),
     },
     {
+      key: "priority",
+      header: "Priority",
+      render: (value) => (
+        <Badge variant={getPriorityColor(value)}>{value}</Badge>
+      ),
+    },
+    {
       key: "status",
       header: "Status",
       render: (value) => (
         <Badge variant={getStatusColor(value)}>{value}</Badge>
       ),
+    },
+    {
+      key: "sla_response_breached",
+      header: "SLA",
+      render: (value, row) => {
+        if (row.sla_response_breached || row.sla_resolution_breached) {
+          return <Badge variant="destructive">Breached</Badge>;
+        }
+        if (row.status === 'resolved' || row.status === 'closed') {
+          return <Badge variant="default">Met</Badge>;
+        }
+        return <Badge variant="secondary">On Track</Badge>;
+      },
     },
     {
       key: "assigned_to_profile",
@@ -325,6 +360,18 @@ export default function Incidents() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Severities</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="critical">Critical</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Filter by priority" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Priorities</SelectItem>
               <SelectItem value="low">Low</SelectItem>
               <SelectItem value="medium">Medium</SelectItem>
               <SelectItem value="high">High</SelectItem>

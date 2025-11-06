@@ -28,6 +28,7 @@ export default function IncidentDialog({ open, onOpenChange, incident, onSuccess
     description: "",
     impacted_service: "",
     severity: "medium",
+    priority: "medium",
     status: "open",
     assigned_to: "unassigned",
     root_cause: "",
@@ -43,6 +44,7 @@ export default function IncidentDialog({ open, onOpenChange, incident, onSuccess
           description: incident.description || "",
           impacted_service: incident.impacted_service || "",
           severity: incident.severity || "medium",
+          priority: incident.priority || "medium",
           status: incident.status || "open",
           assigned_to: incident.assigned_to || "unassigned",
           root_cause: incident.root_cause || "",
@@ -54,6 +56,7 @@ export default function IncidentDialog({ open, onOpenChange, incident, onSuccess
           description: "",
           impacted_service: "",
           severity: "medium",
+          priority: "medium",
           status: "open",
           assigned_to: "unassigned",
           root_cause: "",
@@ -207,6 +210,21 @@ export default function IncidentDialog({ open, onOpenChange, incident, onSuccess
             <div>
               <Label htmlFor="severity">Severity *</Label>
               <Select value={formData.severity} onValueChange={(value) => setFormData({ ...formData, severity: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="priority">Priority *</Label>
+              <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>

@@ -475,13 +475,19 @@ export type Database = {
           closed_at: string | null
           created_at: string
           description: string | null
+          first_response_at: string | null
           id: string
           impacted_service: string
+          priority: string
           reported_by: string
           resolution_summary: string | null
           resolved_at: string | null
           root_cause: string | null
           severity: string
+          sla_resolution_breached: boolean | null
+          sla_response_breached: boolean | null
+          sla_target_resolution_hours: number | null
+          sla_target_response_hours: number | null
           status: string
           ticket_number: string
           title: string
@@ -492,13 +498,19 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           description?: string | null
+          first_response_at?: string | null
           id?: string
           impacted_service: string
+          priority?: string
           reported_by: string
           resolution_summary?: string | null
           resolved_at?: string | null
           root_cause?: string | null
           severity?: string
+          sla_resolution_breached?: boolean | null
+          sla_response_breached?: boolean | null
+          sla_target_resolution_hours?: number | null
+          sla_target_response_hours?: number | null
           status?: string
           ticket_number: string
           title: string
@@ -509,13 +521,19 @@ export type Database = {
           closed_at?: string | null
           created_at?: string
           description?: string | null
+          first_response_at?: string | null
           id?: string
           impacted_service?: string
+          priority?: string
           reported_by?: string
           resolution_summary?: string | null
           resolved_at?: string | null
           root_cause?: string | null
           severity?: string
+          sla_resolution_breached?: boolean | null
+          sla_response_breached?: boolean | null
+          sla_target_resolution_hours?: number | null
+          sla_target_response_hours?: number | null
           status?: string
           ticket_number?: string
           title?: string
