@@ -29,7 +29,7 @@ export default function IncidentDialog({ open, onOpenChange, incident, onSuccess
     impacted_service: "",
     severity: "medium",
     status: "open",
-    assigned_to: "",
+    assigned_to: "unassigned",
     root_cause: "",
     resolution_summary: "",
   });
@@ -44,7 +44,7 @@ export default function IncidentDialog({ open, onOpenChange, incident, onSuccess
           impacted_service: incident.impacted_service || "",
           severity: incident.severity || "medium",
           status: incident.status || "open",
-          assigned_to: incident.assigned_to || "",
+          assigned_to: incident.assigned_to || "unassigned",
           root_cause: incident.root_cause || "",
           resolution_summary: incident.resolution_summary || "",
         });
@@ -55,7 +55,7 @@ export default function IncidentDialog({ open, onOpenChange, incident, onSuccess
           impacted_service: "",
           severity: "medium",
           status: "open",
-          assigned_to: "",
+          assigned_to: "unassigned",
           root_cause: "",
           resolution_summary: "",
         });
@@ -116,7 +116,7 @@ export default function IncidentDialog({ open, onOpenChange, incident, onSuccess
     try {
       const dataToSave: any = {
         ...formData,
-        assigned_to: formData.assigned_to || null,
+        assigned_to: formData.assigned_to === "unassigned" ? null : formData.assigned_to,
       };
 
       if (formData.status === "resolved" && !incident?.resolved_at) {
@@ -249,7 +249,7 @@ export default function IncidentDialog({ open, onOpenChange, incident, onSuccess
                   <SelectValue placeholder="Select user" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Unassigned</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.user_id} value={user.user_id}>
                       {user.full_name}
