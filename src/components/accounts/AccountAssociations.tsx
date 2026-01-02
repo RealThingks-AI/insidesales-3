@@ -49,15 +49,14 @@ export const AccountAssociations = ({ accountId, companyName }: AccountAssociati
 
       setContacts(contactData || []);
 
-      if (companyName) {
-        const { data: dealData } = await supabase
-          .from('deals')
-          .select('id, deal_name, stage, total_contract_value, probability')
-          .eq('customer_name', companyName)
-          .order('created_at', { ascending: false });
+      // Fetch deals by account_id (proper FK relationship)
+      const { data: dealData } = await supabase
+        .from('deals')
+        .select('id, deal_name, stage, total_contract_value, probability')
+        .eq('account_id', accountId)
+        .order('created_at', { ascending: false });
 
-        setDeals(dealData || []);
-      }
+      setDeals(dealData || []);
     } catch (error) {
       console.error('Error fetching associations:', error);
     } finally {
