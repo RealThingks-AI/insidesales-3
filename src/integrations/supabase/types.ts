@@ -82,11 +82,8 @@ export type Database = {
           notes: string | null
           phone: string | null
           region: string | null
-          score: number | null
-          segment: string | null
           status: string | null
           tags: string[] | null
-          total_revenue: number | null
           updated_at: string | null
           website: string | null
         }
@@ -107,11 +104,8 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           region?: string | null
-          score?: number | null
-          segment?: string | null
           status?: string | null
           tags?: string[] | null
-          total_revenue?: number | null
           updated_at?: string | null
           website?: string | null
         }
@@ -132,11 +126,8 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           region?: string | null
-          score?: number | null
-          segment?: string | null
           status?: string | null
           tags?: string[] | null
-          total_revenue?: number | null
           updated_at?: string | null
           website?: string | null
         }
