@@ -162,6 +162,7 @@ export const AccountModal = ({ open, onOpenChange, account, onSuccess }: Account
         return;
       }
 
+      // Only set account_owner on create, not update
       const accountData = {
         company_name: data.company_name,
         email: data.email || null,
@@ -174,9 +175,9 @@ export const AccountModal = ({ open, onOpenChange, account, onSuccess }: Account
         notes: data.notes || null,
         industry: data.industry || null,
         phone: data.phone || null,
-        
-        account_owner: user.data.user.id,
         modified_by: user.data.user.id,
+        // Only set account_owner on new accounts
+        ...(account ? {} : { account_owner: user.data.user.id }),
       };
 
       if (account) {

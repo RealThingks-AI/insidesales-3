@@ -29,6 +29,7 @@ import { useQuery } from "@tanstack/react-query";
 // Export ref interface for parent component
 export interface AccountTableRef {
   handleBulkDelete: () => Promise<void>;
+  getSelectedAccountsForEmail: () => { id: string; name: string; email?: string; type: 'lead' | 'contact' | 'account' }[];
 }
 export interface Account {
   id: string;
@@ -171,9 +172,22 @@ const AccountTable = forwardRef<AccountTableRef, AccountTableProps>(({
     }
   }, [viewId, accounts, setSearchParams]);
 
-  // Expose handleBulkDelete to parent via ref
+  // Get selected accounts formatted for bulk email
+  const getSelectedAccountsForEmail = () => {
+    return accounts
+      .filter(a => selectedAccounts.includes(a.id))
+      .map(a => ({
+        id: a.id,
+        name: a.company_name,
+        email: a.email || undefined,
+        type: 'account' as const
+      }));
+  };
+
+  // Expose handleBulkDelete and getSelectedAccountsForEmail to parent via ref
   useImperativeHandle(ref, () => ({
-    handleBulkDelete
+    handleBulkDelete,
+    getSelectedAccountsForEmail
   }), [selectedAccounts, accounts]);
 
   // Fetch all profiles for owner dropdown
@@ -257,24 +271,25 @@ const AccountTable = forwardRef<AccountTableRef, AccountTableProps>(({
         return acc;
       }, {} as Record<string, number>);
 
-      // Fetch deal counts by matching customer_name to company_name
-      const { data: dealsData } = await supabase
+      // Fetch deal counts by account_id (now using proper FK)
+      const { data: dealCounts } = await supabase
         .from('deals')
-        .select('customer_name, total_contract_value');
+        .select('account_id')
+        .not('account_id', 'is', null);
 
-      // Calculate deal counts per company
-      const dealCountMap: Record<string, number> = {};
-      (dealsData || []).forEach(deal => {
-        if (deal.customer_name) {
-          dealCountMap[deal.customer_name] = (dealCountMap[deal.customer_name] || 0) + 1;
+      // Calculate deal counts
+      const dealCountMap = (dealCounts || []).reduce((acc, d) => {
+        if (d.account_id) {
+          acc[d.account_id] = (acc[d.account_id] || 0) + 1;
         }
-      });
+        return acc;
+      }, {} as Record<string, number>);
 
-      // Merge actual counts into accounts
+      // Merge actual counts into accounts (DB triggers will keep these in sync)
       const accountsWithCounts = (accountsData || []).map(account => ({
         ...account,
-        contact_count: contactCountMap[account.id] || 0,
-        deal_count: dealCountMap[account.company_name] || 0,
+        contact_count: account.contact_count || contactCountMap[account.id] || 0,
+        deal_count: account.deal_count || dealCountMap[account.id] || 0,
       }));
 
       setAccounts(accountsWithCounts);
