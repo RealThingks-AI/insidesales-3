@@ -1,79 +1,73 @@
 
 
-## Plan: Fix Deals ListView Layout & Scrollbar Issues
+## Plan: Make Horizontal Scrollbar Always Visible While Scrolling
 
-Based on comparing the Deals ListView with the Action Items module, I've identified the following issues and improvements needed:
+Based on the screenshots and your answers, the issue is that the horizontal scrollbar only appears when you scroll all the way to the bottom. You want it **always visible (pinned at the bottom)** while you scroll vertically through rows, but only when there is actual horizontal overflow.
 
-### Issues Identified
+### Root Cause
 
-1. **Horizontal scrollbar visible but not functional**
-   - The table uses `overflow-x-scroll` but the nested div structure causes the scrollbar to appear without content to scroll
-   - The Table component wrapper adds its own `overflow-auto` creating nested scroll containers
+The current implementation uses a single `div` wrapper with `overflow-auto` around the `Table`. This causes the horizontal scrollbar to appear at the very bottom of the **scrollable content** rather than at the bottom of the **visible viewport**.
 
-2. **Extra padding and spacing vs Action Items**
-   - Deals uses default `p-4` cell padding (16px)
-   - Action Items uses compact `py-2 px-3` (8px vertical, 12px horizontal)
-   - Header row heights are inconsistent
+When you have many rows, you must scroll to the last row before the horizontal scrollbar becomes visible.
 
-3. **Nested scroll containers**
-   - ListView has `overflow-y-auto overflow-x-scroll` on outer div
-   - Table component adds another `overflow-auto` wrapper
-   - This creates double scrollbars and scroll conflicts
+### Solution
 
-4. **Missing compact row styling**
-   - Action Items rows have `py-2` for compact height
-   - Deals rows use default padding making them taller
+Split the scroll containers:
+- Outer container handles **vertical scrolling** only (`overflow-y-auto`)
+- Inner container with `position: sticky` at the bottom handles **horizontal scrolling** for the scrollbar track
 
-5. **Header styling differences**
-   - Action Items: `h-11 py-3 px-3` with `border-b-2`
-   - Deals: inconsistent with default styling
+However, a simpler CSS approach exists using `overflow: scroll` combined with `scrollbar-gutter: stable` and making the scrollbar always visible via CSS `overflow-x: scroll` on a sticky bottom element.
+
+The cleanest approach is to use a **fixed-position horizontal scrollbar** that syncs with the table scroll position using JavaScript.
+
+### Technical Approach
+
+Use the `overflow-x: scroll` property with `overflow-y: auto` on a wrapper, but restructure the layout so the horizontal scrollbar container is **sticky at the bottom** of the visible area.
+
+Implementation:
+1. Create a separate sticky bottom div that shows the horizontal scrollbar
+2. Sync the scroll position between the table and the scrollbar using JavaScript refs
+3. The scrollbar element will be `position: sticky; bottom: 0` to always stay visible
 
 ### Changes
 
 **File: `src/components/ListView.tsx`**
 
-1. **Fix scroll container structure** (lines 394-396)
-   - Remove `overflow-x-scroll` from outer div
-   - Let table's internal wrapper handle scrolling
-   - Change to `overflow-auto` for proper scroll behavior
+1. **Add scrollbar sync refs** (lines 62-66)
+   - Add `scrollContainerRef` and `scrollbarRef` useRefs
+   - Add state to track if horizontal scroll is needed
 
-2. **Update table container** (lines 396-397)
-   - Remove the `min-w-max` which forces horizontal scroll
-   - Use proper table-layout for column widths
+2. **Add scroll sync logic** (new useEffect)
+   - Use ResizeObserver to detect when content is wider than container
+   - Sync scroll positions between table and bottom scrollbar
 
-3. **Reduce filter bar padding** (line 345)
-   - Already matches Action Items (`px-6 py-3`) - no change needed
+3. **Update content area structure** (lines 394-527)
+   - Keep the main table in a container with `overflow-y: auto overflow-x: hidden`
+   - Add a sticky bottom scrollbar that mirrors the table width
+   - This scrollbar stays visible at the bottom of the viewport while scrolling vertically
 
-4. **Compact header cells** (lines 400-442)
-   - Add `py-3 px-3 h-11` to match Action Items
-   - Reduce checkbox column width from `w-12` to `w-10`
+4. **Add CSS for the synced scrollbar**
+   - Style the scrollbar track to match the design system
 
-5. **Compact body cells** (lines 460-522)
-   - Change cell padding from default `p-4` to `py-2 px-3`
-   - Reduce row height for more compact display
-
-6. **Fix pagination footer alignment** (lines 543-590)
-   - Already consistent with Action Items
-
-### Technical Details
+### Visual Representation
 
 ```text
-Before (ListView line 394-397):
 +------------------------------------------+
-|  overflow-y-auto overflow-x-scroll       |
+|  Filter Bar (fixed)                      |
++------------------------------------------+
+|  Table Content Area                      |
 |  +--------------------------------------+|
-|  |  Table (w-full min-w-max)            ||
-|  |  + internal overflow-auto wrapper    ||
+|  | Header (sticky top)                  ||
+|  +--------------------------------------+|
+|  | Row 1                                ||
+|  | Row 2                                ||
+|  | Row 3                                ||
+|  | ...                                  ||
+|  +--------------------------------------+|
+|  | Horizontal Scrollbar (sticky bottom)||  <-- Always visible
 |  +--------------------------------------+|
 +------------------------------------------+
-
-After:
-+------------------------------------------+
-|  overflow-auto (single scroll container) |
-|  +--------------------------------------+|
-|  |  Table (w-full)                      ||
-|  |  (no internal wrapper interference)  ||
-|  +--------------------------------------+|
+|  Pagination Footer (fixed)               |
 +------------------------------------------+
 ```
 
@@ -81,16 +75,5 @@ After:
 
 | File | Changes |
 |------|---------|
-| `src/components/ListView.tsx` | Fix scroll container, compact cell padding, align with Action Items styling |
-
-### Summary of Styling Alignment
-
-| Element | Current (Deals) | Target (Action Items) |
-|---------|-----------------|----------------------|
-| Header height | Default | `h-11` |
-| Header padding | Default (`px-4`) | `py-3 px-3` |
-| Cell padding | Default (`p-4`) | `py-2 px-3` |
-| Checkbox column | `w-12` | `w-10` |
-| Scroll container | Double nested | Single `overflow-auto` |
-| Table width | `w-full min-w-max` | `w-full` |
+| `src/components/ListView.tsx` | Add sticky horizontal scrollbar with scroll sync logic |
 
