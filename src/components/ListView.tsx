@@ -391,141 +391,139 @@ export const ListView = ({
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col">
-        {/* Always show horizontal scrollbar */}
-        <div className="flex-1 overflow-y-auto overflow-x-scroll">
-          <Table ref={tableRef} className="w-full min-w-max">
-            <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm z-20 border-b-2">
-              <TableRow className="hover:bg-muted/60 transition-colors border-b">
-                <TableHead className="w-12 min-w-12 bg-muted/80">
+      {/* Content Area - single scroll container */}
+      <div className="flex-1 min-h-0 overflow-auto">
+        <Table ref={tableRef} className="w-full">
+          <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm z-20 border-b-2">
+            <TableRow className="hover:bg-muted/60 transition-colors border-b">
+              <TableHead className="w-10 min-w-10 py-3 px-3 h-11 bg-muted/80">
                   <Checkbox
                     checked={selectedDeals.size === paginatedDeals.length && paginatedDeals.length > 0}
                     onCheckedChange={handleSelectAll}
                     className="transition-all hover:scale-110"
                   />
                 </TableHead>
-                {visibleColumns.map(column => (
-                  <TableHead 
-                    key={column.field} 
-                    className="text-sm font-semibold cursor-pointer hover:bg-muted transition-colors relative bg-muted/80"
-                    style={{ 
-                      width: `${tempColumnWidths[column.field] || 120}px`,
-                      minWidth: `${tempColumnWidths[column.field] || 120}px`,
-                      maxWidth: `${tempColumnWidths[column.field] || 120}px`
+              {visibleColumns.map(column => (
+                <TableHead 
+                  key={column.field} 
+                  className="text-sm font-semibold cursor-pointer hover:bg-muted transition-colors relative bg-muted/80 py-3 px-3 h-11"
+                  style={{ 
+                    width: `${tempColumnWidths[column.field] || 120}px`,
+                    minWidth: `${tempColumnWidths[column.field] || 120}px`,
+                    maxWidth: `${tempColumnWidths[column.field] || 120}px`
+                  }}
+                  onClick={() => {
+                    if (sortBy === column.field) {
+                      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+                    } else {
+                      setSortBy(column.field);
+                      setSortOrder("desc");
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2 pr-4 text-foreground">
+                    {column.label}
+                    {sortBy !== column.field ? (
+                      <ArrowUpDown className="w-3 h-3 text-muted-foreground/40" />
+                    ) : (
+                      sortOrder === "asc" ? <ArrowUp className="w-3 h-3 text-foreground" /> : <ArrowDown className="w-3 h-3 text-foreground" />
+                    )}
+                  </div>
+                  <div
+                    className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-primary/40 bg-transparent"
+                    onMouseDown={(e) => handleMouseDown(e, column.field)}
+                    style={{
+                      background: isResizing === column.field ? 'hsl(var(--primary) / 0.5)' : undefined
                     }}
-                    onClick={() => {
-                      if (sortBy === column.field) {
-                        setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                      } else {
-                        setSortBy(column.field);
-                        setSortOrder("desc");
-                      }
-                    }}
-                  >
-                    <div className="flex items-center gap-2 pr-4 text-foreground">
-                      {column.label}
-                      {sortBy !== column.field ? (
-                        <ArrowUpDown className="w-3 h-3 text-muted-foreground/40" />
-                      ) : (
-                        sortOrder === "asc" ? <ArrowUp className="w-3 h-3 text-foreground" /> : <ArrowDown className="w-3 h-3 text-foreground" />
-                      )}
-                    </div>
-                    <div
-                      className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-primary/40 bg-transparent"
-                      onMouseDown={(e) => handleMouseDown(e, column.field)}
-                      style={{
-                        background: isResizing === column.field ? 'hsl(var(--primary) / 0.5)' : undefined
-                      }}
-                    />
-                  </TableHead>
-                ))}
-                <TableHead className="w-32 min-w-32 bg-muted/80 text-sm font-semibold text-foreground">Actions</TableHead>
+                  />
+                </TableHead>
+              ))}
+              <TableHead className="w-32 min-w-32 bg-muted/80 text-sm font-semibold text-foreground py-3 px-3 h-11">Actions</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {filteredAndSortedDeals.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={visibleColumns.length + 2} className="text-center py-8 text-muted-foreground">
-                    No deals found
+          <TableBody>
+            {filteredAndSortedDeals.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={visibleColumns.length + 2} className="text-center py-8 text-muted-foreground">
+                  No deals found
+                </TableCell>
+              </TableRow>
+            ) : (
+              paginatedDeals.map((deal) => (
+                <TableRow 
+                  key={deal.id} 
+                  className={`hover:bg-muted/50 transition-all ${
+                    selectedDeals.has(deal.id) ? 'bg-primary/5' : ''
+                  }`}
+                >
+                  <TableCell className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={selectedDeals.has(deal.id)}
+                      onCheckedChange={(checked) => handleSelectDeal(deal.id, Boolean(checked))}
+                    />
                   </TableCell>
-                </TableRow>
-              ) : (
-                paginatedDeals.map((deal) => (
-                  <TableRow 
-                    key={deal.id} 
-                    className={`hover:bg-muted/50 transition-all ${
-                      selectedDeals.has(deal.id) ? 'bg-primary/5' : ''
-                    }`}
-                  >
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={selectedDeals.has(deal.id)}
-                        onCheckedChange={(checked) => handleSelectDeal(deal.id, Boolean(checked))}
+                  {visibleColumns.map(column => (
+                    <TableCell 
+                      key={column.field} 
+                      className="text-sm py-2 px-3"
+                      style={{ 
+                        width: `${tempColumnWidths[column.field] || 120}px`,
+                        minWidth: `${tempColumnWidths[column.field] || 120}px`,
+                        maxWidth: `${tempColumnWidths[column.field] || 120}px`
+                      }}
+                    >
+                      <InlineEditCell
+                        value={deal[column.field as keyof Deal]}
+                        field={column.field}
+                        dealId={deal.id}
+                        onSave={handleInlineEdit}
+                        type={getFieldType(column.field)}
+                        options={getFieldOptions(column.field)}
                       />
                     </TableCell>
-                    {visibleColumns.map(column => (
-                      <TableCell 
-                        key={column.field} 
-                        className="text-sm"
-                        style={{ 
-                          width: `${tempColumnWidths[column.field] || 120}px`,
-                          minWidth: `${tempColumnWidths[column.field] || 120}px`,
-                          maxWidth: `${tempColumnWidths[column.field] || 120}px`
-                        }}
+                  ))}
+                  <TableCell className="py-2 px-3">
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleActionClick(deal)}
+                        className="h-8 w-8 p-0"
+                        title="Actions"
                       >
-                        <InlineEditCell
-                          value={deal[column.field as keyof Deal]}
-                          field={column.field}
-                          dealId={deal.id}
-                          onSave={handleInlineEdit}
-                          type={getFieldType(column.field)}
-                          options={getFieldOptions(column.field)}
-                        />
-                      </TableCell>
-                    ))}
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleActionClick(deal)}
-                          className="h-8 w-8 p-0"
-                          title="Actions"
-                        >
-                          <CheckSquare className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => onDealClick(deal)}
-                          className="h-8 w-8 p-0"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            onDeleteDeals([deal.id]);
-                            toast({
-                              title: "Deal deleted",
-                              description: `Successfully deleted ${deal.project_name || 'deal'}`,
-                            });
-                          }}
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                        <CheckSquare className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onDealClick(deal)}
+                        className="h-8 w-8 p-0"
+                        title="Edit"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          onDeleteDeals([deal.id]);
+                          toast({
+                            title: "Deal deleted",
+                            description: `Successfully deleted ${deal.project_name || 'deal'}`,
+                          });
+                        }}
+                        className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
 
       {/* Bulk Actions Bar */}
