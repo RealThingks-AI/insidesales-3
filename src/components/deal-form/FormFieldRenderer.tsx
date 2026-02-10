@@ -265,6 +265,15 @@ export const FormFieldRenderer = ({ field, value, onChange, onLeadSelect, error 
           />
         );
 
+      case 'customer_name':
+        return (
+          <AccountSearchableDropdown
+            value={getStringValue(value)}
+            onValueChange={(val) => onChange(field, val)}
+            placeholder="Search and select an account..."
+          />
+        );
+
       case 'lead_owner':
         return (
           <Input
