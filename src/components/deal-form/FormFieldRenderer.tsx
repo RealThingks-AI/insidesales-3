@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Deal } from "@/types/deal";
 import { LeadSearchableDropdown } from "@/components/LeadSearchableDropdown";
+import { AccountSearchableDropdown } from "@/components/AccountSearchableDropdown";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { useUserDisplayNames } from "@/hooks/useUserDisplayNames";

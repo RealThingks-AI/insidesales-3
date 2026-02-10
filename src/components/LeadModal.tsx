@@ -260,9 +260,13 @@ export const LeadModal = ({ open, onOpenChange, lead, onSuccess }: LeadModalProp
                 name="company_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Company Name</FormLabel>
+                    <FormLabel>Account</FormLabel>
                     <FormControl>
-                      <Input placeholder="Company Name" {...field} />
+                      <AccountSearchableDropdown
+                        value={field.value || ""}
+                        onValueChange={field.onChange}
+                        placeholder="Select account..."
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
