@@ -101,7 +101,7 @@ export const DealCard = ({
         {/* Customer Name */}
         {deal.customer_name && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground/70 w-14 shrink-0">Customer</span>
+            <span className="text-xs text-muted-foreground/70 w-14 shrink-0">Account</span>
             <p className="text-sm font-medium text-foreground truncate">
               {deal.customer_name}
             </p>

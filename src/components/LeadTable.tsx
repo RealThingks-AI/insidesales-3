@@ -42,7 +42,7 @@ interface Lead {
 
 const defaultColumns: LeadColumnConfig[] = [
   { field: 'lead_name', label: 'Lead Name', visible: true, order: 0 },
-  { field: 'company_name', label: 'Company Name', visible: true, order: 1 },
+  { field: 'company_name', label: 'Account', visible: true, order: 1 },
   { field: 'position', label: 'Position', visible: true, order: 2 },
   { field: 'email', label: 'Email', visible: true, order: 3 },
   { field: 'phone_no', label: 'Phone', visible: true, order: 4 },
