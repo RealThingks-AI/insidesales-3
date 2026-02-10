@@ -56,7 +56,7 @@ export const FormFieldRenderer = ({ field, value, onChange, onLeadSelect, error 
   const getFieldLabel = (field: string) => {
     const labels: Record<string, string> = {
       project_name: 'Project Name',
-      customer_name: 'Customer Name',
+      customer_name: 'Account',
       lead_name: 'Lead Name',
       lead_owner: 'Lead Owner',
       region: 'Region',
