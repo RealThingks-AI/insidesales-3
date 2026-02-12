@@ -1,122 +1,178 @@
 
 
-## Plan: Replace "Company Name" with "Account" Dropdown in Leads + Deals Modules
+# Refactor: Details Panel - Clean Up, Auto-scroll, Add Button and Section Logic
 
-### Overview
+## Overview
 
-Replace the plain text "Company Name" field in Leads and "Customer Name" field in Deals with a proper Account relationship using searchable dropdowns. Migrate all existing data by creating new Account records (without duplicates) and linking them to existing Leads and Deals.
+Streamline the expanded details panel by replacing the expand icon, cleaning up columns, fixing sort/scroll behavior, separating completed action items into History, filtering history to only manual logs and status changes, and adding a unified "Add" button with a modal.
 
-### Data Analysis
+---
 
-**Deals module** has 33 unique `customer_name` values across ~47 deals. Of these:
-- 2 already match existing accounts exactly: **BMW**, **CARIAD**
-- Several have near-matches (e.g., "REFU Drive" / "ReFu Drive" / "REFU  Drive" should all map to "REFU Drive HQ, Germany")
-- ~25 need new Account records created
+## 1. Replace "Expand Details" icon (DealCard.tsx)
 
-**Leads module** has 15 unique `company_name` values. Some overlap with deals (Hanon, Lamborgini, Marelli, Volvo AB, LG Virtualization).
+- Replace `PanelRightOpen` import with `Activity` from lucide-react
+- Update the expand button icon from `<PanelRightOpen>` to `<Activity>`
 
-**Deduplication mapping** (customer_name/company_name -> existing account to link):
-| Text in Leads/Deals | Existing Account Match |
-|---|---|
-| BMW | BMW |
-| CARIAD, CARIAD US | CARIAD |
-| REFU Drive, ReFu Drive, REFU  Drive | REFU Drive HQ, Germany |
-| Continental | Continental HQ, Germany |
-| Harley Davidson | Harley-Davidson Motor Company, HQ, US |
-| Porsche | Porsche, HQ, Germany |
-| Mercedes Benz India | Mercedes-Benz Group AG, HQ, Germany |
-| Stellantis | Stellantis, HQ, Netherlands |
-| Marelli | Marelli HQ, Italy |
-| Volvo AB | (no exact match - create new) |
-| Volvo Cars | Volvo Car Corporation |
-| All others | Create new Account records |
+## 2. Sort newest-at-bottom + auto-scroll (DealExpandedPanel.tsx)
 
-### Database Changes
+- Change `historySortDirection` default from `'desc'` to `'asc'` (already `'asc'`, but ensure DB query uses `ascending: true` instead of `false`)
+- Change audit log query to `order('created_at', { ascending: true })` so newest items are at the bottom
+- Sort action items by `created_at` ascending
+- Add `useRef` refs for both scroll containers (`historyScrollRef`, `actionItemsScrollRef`)
+- Add `useEffect` that scrolls both containers to bottom (`scrollTop = scrollHeight`) whenever data updates
+- Remove all sort button wrappers and sort icon renders from column headers -- keep plain text headers only
+- Remove `handleHistorySort`, `getHistorySortIcon`, `handleActionItemSort`, `getActionItemSortIcon` functions and related state (`historySortField`, `historySortDirection`, `actionItemSortField`, `actionItemSortDirection`)
 
-**Migration 1: Add `account_id` columns**
-- `ALTER TABLE leads ADD COLUMN account_id UUID REFERENCES accounts(id)`
-- `ALTER TABLE deals ADD COLUMN account_id UUID REFERENCES accounts(id)`
+## 3. Completed action items move to History section (DealExpandedPanel.tsx)
 
-**Migration 2: Create missing Account records and backfill**
-- Collect all unique names from `leads.company_name` and `deals.customer_name`
-- For names matching existing accounts (exact or near-match), link directly
-- For unmatched names, INSERT new Account records
-- UPDATE all leads and deals to set `account_id`
-- Keep `company_name` and `customer_name` columns intact (no data loss)
+- Split `actionItems` into two filtered lists:
+  - `activeActionItems`: status is "Open" or "In Progress" (displayed in Action Items section)
+  - `completedActionItems`: status is "Completed" or "Cancelled" (merged into History section)
+- In History, merge `filteredSortedLogs` with `completedActionItems` formatted as history-like entries:
+  - `message`: "Task Title - Completed" (or "- Cancelled")
+  - `created_at`: from the action item's `created_at`
+  - `user_id`: from `assigned_to`
+- Sort merged list by `created_at` ascending (newest at bottom)
+- Action Items section only renders `activeActionItems`
 
-### UI Changes
+## 4. History section -- only show manual logs and action item status updates (DealExpandedPanel.tsx)
 
-**1. `src/components/LeadModal.tsx`**
-- Replace text `Input` for "Company Name" with `AccountSearchableDropdown`
-- Change label from "Company Name" to "Account"
-- On select: set `company_name = selected account_name` (backward compat) and store `account_id`
+- Filter `auditLogs` to only include entries where:
+  - `details.manual_entry === true` (user-added logs: Note, Call, Meeting, Email), OR
+  - `details.action_item_title` exists (action item status change logs)
+- This excludes all system-generated deal field change logs (create, update, stage changes, etc.)
 
-**2. `src/components/LeadTable.tsx`**
-- Rename column label from "Company Name" to "Account"
-- Add clickable account name that opens `AccountViewModal`
+## 5. History Section column changes
 
-**3. `src/components/deal-form/FormFieldRenderer.tsx`**
-- Change `customer_name` label from "Customer Name" to "Account"
-- Replace the default text Input with `AccountSearchableDropdown` for `customer_name` field
-- Update `handleLeadSelect` to pass `account_id` when auto-filling from lead
+**Remove**: Type column (the colored dot + label column)
+**Keep**: #, Changes, By, Time, Eye icon
 
-**4. `src/components/deal-form/LeadStageForm.tsx`**
-- Update the `customer_name` field rendering to use the new dropdown
-
-**5. `src/components/DealCard.tsx` / `src/components/kanban/InlineDetailsPanel.tsx`**
-- Update display label from "Customer" to "Account" where `customer_name` is shown
-
-**6. Import/Export files**
-- `src/hooks/import-export/leadsCSVProcessor.ts` - support `account_name` header mapping
-- `src/hooks/import-export/dealsCSVProcessor.ts` - support `account_name` header mapping
-
-### Technical Details
-
-**Migration SQL (executed in order):**
-
-Step 1 - Schema:
-```sql
-ALTER TABLE leads ADD COLUMN account_id UUID REFERENCES accounts(id);
-ALTER TABLE deals ADD COLUMN account_id UUID REFERENCES accounts(id);
+New header row (plain text, no sort buttons):
+```
+| # | Changes | By | Time | (eye) |
 ```
 
-Step 2 - Create accounts for unmatched names and backfill:
-The migration will use a DO block to:
-1. Build a mapping of customer_name/company_name to existing account IDs
-2. For unmatched names, INSERT INTO accounts with just the name
-3. UPDATE leads SET account_id = matched_account_id
-4. UPDATE deals SET account_id = matched_account_id
+Column widths adjusted: Changes gets the space freed from removing Type.
 
-**Near-match handling in migration:**
-- "REFU Drive", "ReFu Drive", "REFU  Drive" all map to existing "REFU Drive HQ, Germany" (id: 2b3ecebd)
-- "Harley Davidson" maps to "Harley-Davidson Motor Company, HQ, US"
-- "Continental" maps to "Continental HQ, Germany"
-- "Porsche" maps to "Porsche, HQ, Germany"
-- "Stellantis" maps to "Stellantis, HQ, Netherlands"
-- "Marelli" maps to "Marelli HQ, Italy"
-- "Volvo Cars" maps to "Volvo Car Corporation"
-- "Mercedes Benz India" maps to "Mercedes-Benz Group AG, HQ, Germany"
-- New accounts created for: Accenture, Aumovio, BMW - Accenture, BMW Tech Works, BMW/Acsia, CARIAD US, ClearMotion, Coretura, Eberspacher, Hanon, Kiekert, Lamborgini, LG - tQCS, LG Virtualization, LSAT, Siemens / Volvo Trucks, TATA Elxsi, Thyssen Krupp, TKE, Volvo AB, VW, Antolin, Aptiv, BHTC, BMW Tech Center India, Daichi, Kostal, Preh, Scania / MAN, Test, Vestel
+## 6. Action Items Section column changes
 
-**Backward compatibility:**
-- `company_name` (leads) and `customer_name` (deals) columns are preserved
-- When user selects an Account from dropdown, both the text field and `account_id` are set
-- Existing queries, filters, and search continue to work on text fields
+**Remove**: Priority column (the priority dot column)
+**Keep**: #, Task, Assigned, Due, Status, Actions (...)
 
-### Files to Modify
+New header row (plain text, no sort buttons):
+```
+| # | Task | Assigned | Due | Status | ... |
+```
 
-| File | Change |
-|------|--------|
-| New migration | Add `account_id` to leads and deals, create accounts, backfill |
-| `src/components/LeadModal.tsx` | Replace text input with AccountSearchableDropdown |
-| `src/components/LeadTable.tsx` | Rename column to "Account", add clickable link |
-| `src/components/deal-form/FormFieldRenderer.tsx` | Add AccountSearchableDropdown for customer_name |
-| `src/integrations/supabase/types.ts` | Auto-updates with new columns |
-| `src/types/deal.ts` | Add `account_id` field |
+## 7. Status change log format update (DealExpandedPanel.tsx)
 
-### Zero Data Loss Guarantee
-- No columns are dropped or renamed
-- Existing text values remain intact in `company_name` and `customer_name`
-- New `account_id` column is nullable -- existing code continues to work
-- All existing customer/company names get linked to Account records (existing or newly created)
+In `handleStatusChange`, update the log message format from:
+```
+"Action item status changed: OldStatus -> NewStatus"
+```
+to:
+```
+"TaskTitle -> NewStatus"
+```
+
+This shows only the task name and the updated status (not the old status).
+
+## 8. Date format update
+
+- Verify `formatHistoryDateTime` uses `'HH:mm dd-MM-yy'` (already correct)
+- Update action item due date display from `format(date, 'dd-MMM-yy')` to `format(date, 'HH:mm dd-MM-yy')` where time is available; for date-only values, use `'dd-MM-yy'`
+
+## 9. Add "Add" button in Details header (AnimatedStageHeaders.tsx)
+
+- Replace the "Details" text in the details header with an "Add" button (`Plus` icon + "Add" text)
+- Add a new prop `onAddDetail` callback to `AnimatedStageHeadersProps`
+- Wire the button click to `onAddDetail()`
+
+## 10. Unified "Add Detail" Modal (DealExpandedPanel.tsx)
+
+- Add new state: `addDetailOpen` (boolean), `addDetailType` ('log' | 'action_item')
+- Replace existing "Add Log" dialog with a unified modal:
+  - **Type selector**: Dropdown with "Log" and "Action Item" options
+  - **If "Log" selected**: Show log type dropdown (Note only, simplified) + description textarea
+  - **If "Action Item" selected**: Show Title field (required), with a collapsible "More options" section (collapsed by default) containing: Assigned To dropdown, Due Date input, Priority dropdown, Status dropdown
+- On save:
+  - Log: insert into `security_audit_log` with `manual_entry: true`
+  - Action Item: insert into `action_items` table with `module_type: 'deals'` and `module_id: deal.id`
+- Remove the old `addLogOpen` state and dialog
+
+## Files Modified
+
+1. **`src/components/DealCard.tsx`** -- Replace `PanelRightOpen` with `Activity` icon
+2. **`src/components/DealExpandedPanel.tsx`** -- All section logic changes: filtering, sorting, auto-scroll, column cleanup, merged history, unified Add modal, status change format, date format
+3. **`src/components/kanban/AnimatedStageHeaders.tsx`** -- Replace "Details" header with "Add" button, add `onAddDetail` prop
+
+## Technical Details
+
+**Auto-scroll implementation:**
+```tsx
+const historyScrollRef = useRef<HTMLDivElement>(null);
+const actionItemsScrollRef = useRef<HTMLDivElement>(null);
+
+useEffect(() => {
+  setTimeout(() => {
+    if (historyScrollRef.current) {
+      historyScrollRef.current.scrollTop = historyScrollRef.current.scrollHeight;
+    }
+    if (actionItemsScrollRef.current) {
+      actionItemsScrollRef.current.scrollTop = actionItemsScrollRef.current.scrollHeight;
+    }
+  }, 100);
+}, [mergedHistory, activeActionItems]);
+```
+
+**History filtering (manual logs + status changes only):**
+```tsx
+const manualAndStatusLogs = useMemo(() => {
+  return auditLogs.filter(log => {
+    const details = log.details as any;
+    return details?.manual_entry === true || details?.action_item_title;
+  });
+}, [auditLogs]);
+```
+
+**Merged history with completed action items:**
+```tsx
+const mergedHistory = useMemo(() => {
+  const completedAsHistory = completedActionItems.map(item => ({
+    id: `completed-${item.id}`,
+    message: `${item.title} - ${item.status}`,
+    user_id: item.assigned_to,
+    created_at: item.created_at,
+    isCompletedAction: true,
+  }));
+  return [...mappedLogs, ...completedAsHistory]
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+}, [manualAndStatusLogs, completedActionItems]);
+```
+
+**Status change log format:**
+```tsx
+// In handleStatusChange:
+message: `${item?.title} → ${status}`,
+```
+
+**Add Detail Modal type switching:**
+```tsx
+<Select value={addDetailType} onValueChange={v => setAddDetailType(v)}>
+  <SelectItem value="log">Log</SelectItem>
+  <SelectItem value="action_item">Action Item</SelectItem>
+</Select>
+
+{addDetailType === 'action_item' && (
+  <>
+    <Input placeholder="Title" value={actionTitle} ... />
+    <Collapsible>
+      <CollapsibleTrigger>More options</CollapsibleTrigger>
+      <CollapsibleContent>
+        {/* Assigned To, Due Date, Priority, Status */}
+      </CollapsibleContent>
+    </Collapsible>
+  </>
+)}
+```
 

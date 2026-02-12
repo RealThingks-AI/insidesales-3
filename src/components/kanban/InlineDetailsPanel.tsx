@@ -9,6 +9,8 @@ interface InlineDetailsPanelProps {
   transition: TransitionState;
   onClose: () => void;
   onOpenActionItemModal?: (actionItem?: any) => void;
+  addDetailOpen?: boolean;
+  onAddDetailOpenChange?: (open: boolean) => void;
 }
 
 export function InlineDetailsPanel({
@@ -16,19 +18,23 @@ export function InlineDetailsPanel({
   transition,
   onClose,
   onOpenActionItemModal,
+  addDetailOpen,
+  onAddDetailOpenChange,
 }: InlineDetailsPanelProps) {
   return (
     <div 
       className="flex flex-col overflow-y-auto"
       style={{ 
-        minHeight: '400px',
-        maxHeight: 'calc(100vh - 180px)',
+        minHeight: '550px',
+        maxHeight: 'calc(100vh - 140px)',
       }}
     >
       <DealExpandedPanel 
         deal={deal} 
         onClose={onClose}
         onOpenActionItemModal={onOpenActionItemModal}
+        addDetailOpen={addDetailOpen}
+        onAddDetailOpenChange={onAddDetailOpenChange}
       />
     </div>
   );
