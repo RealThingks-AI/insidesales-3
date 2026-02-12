@@ -11,7 +11,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-const YearlyRevenueSummary = () => {
+interface YearlyRevenueSummaryProps {
+  selectedYear?: number;
+  onYearChange?: (year: number) => void;
+  hideHeader?: boolean;
+}
+
+const YearlyRevenueSummary = ({ selectedYear: externalYear, onYearChange, hideHeader }: YearlyRevenueSummaryProps) => {
   const {
     user
   } = useAuth();
@@ -28,7 +34,9 @@ const YearlyRevenueSummary = () => {
   const availableYears = [2023, 2024, 2025, 2026];
   const currentYear = new Date().getFullYear();
   const defaultYear = availableYears.includes(currentYear) ? currentYear : 2025;
-  const [selectedYear, setSelectedYear] = useState(defaultYear);
+  const [internalYear, setInternalYear] = useState(defaultYear);
+  const selectedYear = externalYear ?? internalYear;
+  const setSelectedYear = onYearChange ?? setInternalYear;
   const {
     revenueData,
     isLoading: dataLoading
@@ -144,7 +152,7 @@ const YearlyRevenueSummary = () => {
   const progressPercentage = getProgressPercentage(revenueData?.totalActual || 0, revenueData?.target || 0);
   return <div className="space-y-6">
       {/* Header with Year Selector and Notification Bell */}
-      <div className="flex items-center justify-between">
+      {!hideHeader && <div className="flex items-center justify-between">
         <div>
           
           <p className="text-muted-foreground"> </p>
@@ -162,7 +170,7 @@ const YearlyRevenueSummary = () => {
             </SelectContent>
           </Select>
         </div>
-      </div>
+      </div>}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
