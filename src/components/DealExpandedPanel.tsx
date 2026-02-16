@@ -820,10 +820,10 @@ export const DealExpandedPanel = ({ deal, onClose, onOpenActionItemModal, addDet
                       <span className="text-muted-foreground text-xs block mb-1">Action Item Name</span>
                       <p className="text-sm font-medium">{String(details.action_item_title)}</p>
                     </div>
-                    {details?.action_item_status &&
+                    {(details?.action_item_status || details?.field_changes?.status?.new) &&
                     <div>
-                      <span className="text-muted-foreground text-xs block mb-1">Status</span>
-                      <p className="text-sm font-medium">{String(details.action_item_status)}</p>
+                      <span className="text-muted-foreground text-xs block mb-1">Current Status</span>
+                      <p className="text-sm font-medium">{String(details?.field_changes?.status?.new || details?.action_item_status)}</p>
                     </div>
                     }
                   </>
