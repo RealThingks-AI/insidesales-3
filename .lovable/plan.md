@@ -1,27 +1,31 @@
 
-# Fix Plus Icon Overlapping Record Table
 
-## Problem
-The floating (+) buttons in both History and Action Items sections are positioned absolutely inside the scroll container, causing them to overlap/intersect with the table records.
+## Plan: Simplify History Details Modal
 
-## Solution
-Move the (+) buttons outside the scroll container and place them below each section, so they never overlap with table content.
+### Changes to `src/components/DealExpandedPanel.tsx`
 
-## Technical Details
+**1. Update section (manual entries / logs)**
+- Show only three fields: **Updated By**, **Date**, and **Message**
+- Change date format from `PPpp` (e.g., "Feb 16, 2026, 1:51:36 PM") to `HH:mm DD-MM-YY` (e.g., "13:51 16-02-26")
+- Remove the entire "Field Changes" table block (lines 824-858)
+- Remove the extra formatted details sections (lines 860-868) that show record_data/old_data/updated_fields
 
-### File: `src/components/DealExpandedPanel.tsx`
+**2. Action Item section**
+- Show only four fields: **Updated By**, **Date**, **Action Item Name**, **Status**
+- Use the same `HH:mm dd-MM-yy` date format
+- Remove the field changes table for action item entries as well
 
-**History section (around lines 616-627):**
-- Move the `<button>` element outside the scrollable `div` (the one with `h-[280px] overflow-y-auto relative`)
-- Place it after the scroll container but still inside the section wrapper
-- Change positioning from `absolute bottom-2 right-2` to a flex-aligned button at the bottom-right of the section
-- Use `flex justify-end mt-1` wrapper or similar to position it neatly below the table
+**3. Cleanup**
+- The conditional blocks for `renderFormattedDetails`, `changes.length`, and the Field Changes table will all be removed from the dialog
+- The dialog content will be a clean, simple layout with just the specified fields
 
-**Action Items section (around lines 768-778):**
-- Apply the same change: move the button outside the scroll container
-- Position it below the table using a simple flex wrapper
+### Technical Detail
 
-**Both buttons:**
-- Remove `absolute` positioning and `z-20`
-- Wrap each in a `<div className="flex justify-end px-2 py-1">` placed after the scroll container's closing `</div>`
-- Keep the circular styling (`h-7 w-7 rounded-full bg-primary ...`) but without absolute positioning
+The date format string for `date-fns` will be `HH:mm dd-MM-yy` which produces output like `13:51 16-02-26`.
+
+### File Modified
+
+| File | Change |
+|------|--------|
+| `src/components/DealExpandedPanel.tsx` | Simplify History Details dialog: remove field changes table, show only specified fields per entry type, standardize date format |
+
