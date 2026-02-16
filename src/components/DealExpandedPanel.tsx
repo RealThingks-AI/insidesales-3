@@ -807,9 +807,9 @@ export const DealExpandedPanel = ({ deal, onClose, onOpenActionItemModal, addDet
                     </div>
                   </div>
                   
-                  {details?.message &&
+                  {details?.message && !details?.action_item_title &&
                   <div>
-                      <span className="text-muted-foreground text-xs block mb-1">Message</span>
+                      <span className="text-muted-foreground text-xs block mb-1">Update Message</span>
                       <p className="text-sm bg-muted/30 rounded-md p-2 whitespace-pre-wrap break-words">{String(details.message)}</p>
                     </div>
                   }
