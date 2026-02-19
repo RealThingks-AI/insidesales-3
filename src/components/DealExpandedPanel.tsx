@@ -802,35 +802,69 @@ export const DealExpandedPanel = ({ deal, onClose, onOpenActionItemModal, addDet
                       <p className="font-medium">{updaterName}</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground text-xs">Date</span>
-                      <p>{format(new Date(selectedLog.created_at), 'HH:mm dd-MM-yy')}</p>
+                      <span className="text-muted-foreground text-xs">Time</span>
+                      <p>{format(new Date(selectedLog.created_at), 'PPpp')}</p>
                     </div>
                   </div>
                   
-                  {details?.message && !details?.action_item_title &&
+                  {isManualEntry && details?.message &&
                   <div>
-                      <span className="text-muted-foreground text-xs block mb-1">Update Message</span>
+                      <span className="text-muted-foreground text-xs block mb-1">Message</span>
                       <p className="text-sm bg-muted/30 rounded-md p-2 whitespace-pre-wrap break-words">{String(details.message)}</p>
                     </div>
                   }
 
                   {details?.action_item_title &&
-                  <>
-                    <div>
-                      <span className="text-muted-foreground text-xs block mb-1">Action Item Name</span>
+                  <div>
+                      <span className="text-muted-foreground text-xs block mb-1">Action Item</span>
                       <p className="text-sm font-medium">{String(details.action_item_title)}</p>
                     </div>
-                    {(details?.action_item_status || details?.field_changes?.status?.new) &&
-                    <div>
-                      <span className="text-muted-foreground text-xs block mb-1">Current Status</span>
-                      <p className="text-sm font-medium">{String(details?.field_changes?.status?.new || details?.action_item_status)}</p>
+                  }
+                  
+                  {changes.length > 0 &&
+                  <div>
+                      <span className="text-muted-foreground text-xs block mb-2">Field Changes</span>
+                      <div className="border rounded-lg overflow-hidden">
+                        <Table className="table-fixed w-full">
+                          <TableHeader>
+                            <TableRow className="bg-muted/50">
+                              <TableHead className="h-8 px-3 text-xs font-medium w-[25%]">Field</TableHead>
+                              <TableHead className="h-8 px-3 text-xs font-medium w-[30%]">Old Value</TableHead>
+                              <TableHead className="h-8 px-1 text-xs font-medium w-[20px]"></TableHead>
+                              <TableHead className="h-8 px-3 text-xs font-medium">New Value</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {changes.map((change, idx) =>
+                          <TableRow key={idx}>
+                                <TableCell className="py-2 px-3 text-xs font-medium capitalize break-words">
+                                  {change.field}
+                                </TableCell>
+                                <TableCell className="py-2 px-3 text-xs text-muted-foreground whitespace-normal break-all overflow-hidden">
+                                  {change.oldValue}
+                                </TableCell>
+                                <TableCell className="py-2 px-1 w-[20px]">
+                                  <ArrowRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                </TableCell>
+                                <TableCell className="py-2 px-3 text-xs font-medium whitespace-normal break-all overflow-hidden">
+                                  {change.newValue}
+                                </TableCell>
+                              </TableRow>
+                          )}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
-                    }
-                  </>
                   }
 
-                  {!details?.message && !details?.action_item_title && selectedLog.action === 'create' &&
+                  {!isManualEntry && details && (details.record_data || details.old_data || details.updated_fields || selectedLog.action === 'create') &&
+                  <div>{renderFormattedDetails(details)}</div>
+                  }
+                  {!isManualEntry && selectedLog.action === 'create' && !details &&
                   <p className="text-muted-foreground text-xs italic">Deal was created</p>
+                  }
+                  {changes.length === 0 && !isManualEntry && selectedLog.action !== 'create' && details && !details.action_item_title && !details.record_data && !details.old_data && !details.updated_fields &&
+                  <div>{renderFormattedDetails(details)}</div>
                   }
                 </div>
               </ScrollArea>);
