@@ -1,91 +1,40 @@
 
 
-## Fix Note Editor Bullet Point & Stakeholders Layout Issues
+## Compact Notifications Section
 
-### Issues Found
+### Problem
+Toggle rows span the full width of the container, creating excessive distance between labels and switches. Four separate bordered cards add visual noise. The layout feels stretched and sparse.
 
-1. **Bullet point moves when typing**: `autoFocus` on the Textarea (line 633) places the cursor at position 0 (before `"• "`), so typing inserts text before the bullet instead of after it.
+### Changes — `src/components/settings/account/NotificationsSection.tsx`
 
-2. **Notes panel lacks proper scrollbar**: The notes summary panel (line 580-679) has a `max-h-[280px]` on the inner div but the outer wrapper has no scroll constraint, so it still pushes content.
+**1. Replace full-width toggle rows with a compact inline grid**
+- Use a grid layout (`grid-cols-2` or `grid-cols-3`) where each toggle is a small inline card: label on the left, switch immediately to the right, all within a tight `px-3 py-2` container with a subtle border/rounded style.
+- This cuts the label-to-switch distance dramatically.
 
-3. **Stakeholders section grows unbounded**: The `StakeholdersSection` component has no max-height. When the Notes panel is open with many notes, it consumes all vertical space, squishing the Updates and Action Items sections to near-zero height.
+**2. Consolidate sections, remove noise**
+- Remove the repeated `SectionHeader` with icon + description pattern — use simple bold text labels instead (no icons, no "— description" text).
+- Merge "Module Notifications" and "Event Triggers" into a single "Notifications" grid since they serve the same purpose (toggle on/off).
+- Keep "Delivery Methods" (Email/In-App) and "Frequency & Reminders" as compact inline rows at the top.
+- Remove divider lines between rows.
 
-### Changes (single file: `src/components/DealExpandedPanel.tsx`)
+**3. Resulting layout**
+```text
+Delivery:  [Email ○] [In-App ○]     Frequency: [Instant v]  Reminder: [4:00 PM v]
 
-#### Fix 1: Bullet cursor positioning (line 628-634)
+Modules:   [Leads ○] [Contacts ○] [Accounts ○]
 
-Replace `autoFocus` on the Textarea with a `ref` callback that focuses the element AND places the cursor at the end of the text (after `"• "`):
-
-```tsx
-<Textarea
-  value={noteText}
-  onChange={(e) => setNoteText(e.target.value)}
-  onKeyDown={handleNoteKeyDown}
-  className="min-h-[100px] text-xs resize-none"
-  ref={(el) => {
-    if (el) {
-      el.focus();
-      const len = el.value.length;
-      el.selectionStart = len;
-      el.selectionEnd = len;
-    }
-  }}
-/>
+Events:    [Lead Assigned ○] [Deal Updates ○] [Action Reminders ○]
+           [Meeting Reminders ○] [Weekly Digest ○]
 ```
 
-#### Fix 2: Constrain Stakeholders section height
+Each `[Label ○]` is a small bordered chip/card (~160-200px) with the label and switch side-by-side with minimal gap.
 
-Wrap the StakeholdersSection output in a container with `max-h` and `overflow-y-auto` so it scrolls when content is large. Change the outer div (line 462) from:
+**4. Verify save logic**
+- The auto-save debounce logic and Supabase upsert remain unchanged — just the UI presentation changes.
+- All preference keys stay the same, ensuring existing data works.
 
-```tsx
-<div className="px-3 pt-1.5 pb-1">
-```
-
-to:
-
-```tsx
-<div className="px-3 pt-1.5 pb-1 max-h-[45%] overflow-y-auto shrink-0">
-```
-
-However, since this is not inside a flex parent that uses percentage heights well, a better approach is to change the parent layout. The parent (line 1182) is:
-
-```tsx
-<div className="flex-1 min-h-0 flex flex-col overflow-hidden gap-1">
-```
-
-The fix: Make the StakeholdersSection a flex item that can shrink, and give it a max-height so it doesn't dominate. Change line 1184 from:
-
-```tsx
-<StakeholdersSection deal={deal} queryClient={queryClient} />
-```
-
-to wrap it in a constrained container:
-
-```tsx
-<div className="shrink-0 max-h-[40%] overflow-y-auto">
-  <StakeholdersSection deal={deal} queryClient={queryClient} />
-</div>
-```
-
-This ensures:
-- Stakeholders section gets at most 40% of the panel height
-- When content exceeds that, a scrollbar appears
-- Updates and Action Items always get their fair share of space
-
-#### Fix 3: Ensure notes panel scrolls properly
-
-The notes summary panel (line 596) already has `max-h-[280px] overflow-y-auto`, but when inside the constrained container from Fix 2, this works correctly. No additional change needed here -- the outer scroll from Fix 2 handles it.
-
-### Summary
-
-| Change | Line(s) | Description |
-|--------|---------|-------------|
-| Replace `autoFocus` with ref callback | 628-634 | Cursor placed after bullet on open |
-| Wrap StakeholdersSection in scrollable container | 1184 | Max 40% height with scrollbar |
-
-### Technical Notes
-
-- The ref callback fires on every render, but since `el.focus()` is idempotent when already focused, this is harmless
-- The `max-h-[40%]` works because the parent has `flex-1 min-h-0` which resolves to an actual pixel height
-- Updates and Action Items sections keep their `flex-1 min-h-0` with `h-[220px]`, ensuring they share remaining space equally
+### File
+| File | Action |
+|---|---|
+| `src/components/settings/account/NotificationsSection.tsx` | Rewrite layout to compact grid of small toggle cards |
 
